@@ -169,8 +169,9 @@
 
 **每周更新的完整流程**（Claude 执行，用户只需口述安排）
 1. 改 `index.html` 的 `WEEKS` 数组（**在最前面加新周对象，旧周保留**）
-2. `python3 gen_ics.py` 重新生成 `schedule.ics`
-3. `git add -A && git commit && git push`
+2. `git add -A && git commit && git push`
+3. `schedule.ics` 由 GitHub Action 自动重算，**不用手动跑 gen_ics.py**
+   （本地想预览也可以手动跑，两条路效果一样）
 
 **待办**
 - ⬜ 用户确认目标院校 3–5 所（去研究生院官网查招生专业目录，确认考 306 还是 699）
@@ -179,6 +180,24 @@
 - ⬜ 每周日更新下一周日程
 
 **下一步的第一次真实检验**：2026-10-11（周日）用户首次口述下周安排
+
+---
+
+## 七·五、多端访问（手机怎么改日程）
+
+**背景**：Cherry Studio 只跑在 Mac 上，Claude 能改文件靠的是 Mac 上的文件和 SSH 密钥。**手机上没有这些东西。**
+
+**⚠️ claude.ai 在中国大陆不可用**（实测显示 "App unavailable in region"），所以"手机上开 Claude Code 网页版"这条路走不通，除非有能访问 claude.ai 的网络环境。
+
+| 方案 | 可行性 | 说明 |
+|---|---|---|
+| **远程桌面回 Mac** ⭐ | ✅ | ToDesk / 向日葵（国产，国内稳定，iPhone+Mac 客户端齐全）。环境与本地完全一致 |
+| **GitHub 手机 App 改文件** | ✅ | Action 会自动重算 `schedule.ics`，所以这条路是完整的。适合改时间数字，不适合复杂重排 |
+| Claude Code 网页版 | ❌ | 区域限制 |
+| 手机 SSH 到 Mac | ⚠️ | 只能跑命令，Cherry Studio 的 agent 没有 CLI 入口 |
+
+**已配好的自动化**：`.github/workflows/gen-ics.yml` —— 只要 `index.html` 变了，GitHub 自动重跑 `gen_ics.py` 并提交新 `schedule.ics`（ubuntu runner）。
+**所以本地流程简化为**：改 `index.html` → commit → push（**不必再手动跑 gen_ics.py**）。
 
 ---
 
