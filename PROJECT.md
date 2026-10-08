@@ -134,6 +134,12 @@
 - ✅ 初试倒计时 + 阶段自动识别 + 全程路线图
 - ✅ 接入 8 场学校考试（「学校」页 + 顶部倒计时徽章）
 - ✅ git 走 SSH 443 打通，Claude 可直接命令行 push
+- ✅ 日历订阅 `schedule.ics`（系统日历小组件用），由 `gen_ics.py` 从 index.html 生成
+
+**每周更新的完整流程**（Claude 执行）
+1. 改 `index.html` 的 `WEEKS` 数组
+2. `python3 gen_ics.py` 重新生成 `schedule.ics`
+3. `git add -A && git commit && git push`
 
 **待办**
 - ⬜ 用户确认目标院校 3–5 所（去研究生院官网查招生专业目录）
