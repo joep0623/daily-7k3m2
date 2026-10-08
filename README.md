@@ -1,23 +1,28 @@
 # 备考日程
 
-一个零依赖的单文件网页，用来查看考研备考日程。
+考研备考日程网页。零依赖单文件，四端可用。
 
-## 文件说明
+**线上地址：https://joep0623.github.io/daily-7k3m2/**
 
-- `index.html` —— 全部内容都在这一个文件里（样式、逻辑、数据）。不需要装任何东西，双击就能打开。
+---
 
 ## 每周怎么更新
 
-每周日复盘时，把下周的安排告诉 Claude，Claude 会：
+每周日复盘时，把下周的安排告诉 Claude，剩下的不用你管：
 
-1. 修改 `index.html` 里的 `WEEKS` 数组，在**最前面**加一个新周对象（旧周保留，可以回看）
-2. 本地 commit
+1. Claude 修改 `index.html` 里的 `WEEKS` 数组（在**最前面**加一个新周对象，旧周保留可回看）
+2. Claude 本地 commit
+3. Claude 直接 `git push`（走 SSH 443，不需要你操作）
 
-你只需要在自己电脑上点一下 **Push**（用 GitHub Desktop），或把 `index.html` 重新上传到 GitHub 仓库覆盖旧文件。
+**你唯一要做的事：周日把下周安排说出来。**
 
-### 数据格式
+如果哪天想自己推：打开 GitHub Desktop 点 **Push origin** 也行，两条路都通。
 
-在 `index.html` 的 `<script>` 顶部，找到这段：
+---
+
+## 数据格式
+
+在 `index.html` 的 `<script>` 顶部：
 
 ```js
 const WEEKS = [
@@ -46,13 +51,48 @@ const WEEKS = [
 
 **跨夜时间**：`B('24:00','24:30', ...)` 表示次日 00:00–00:30。凌晨 0:00–7:00 会自动算作前一天。
 
-## 部署到 GitHub Pages
+**初试日期**：文件顶部 `const EXAM_DATE = '2028-12-23';` —— 改这一行，倒计时自动重算。
 
-1. 登录 github.com，New repository
-2. 仓库名建议用不好猜的，比如 `daily-7k3m2x`；选 **Public**；Create
-3. 在仓库页点 **uploading an existing file**，把 `index.html` 拖进去，Commit
-4. **Settings → Pages** → Source 选 `Deploy from a branch`，Branch 选 `main` / `(root)`，Save
-5. 等 1–2 分钟，访问 `https://你的用户名.github.io/仓库名/`
+**阶段划分**：`const STAGES = [...]` —— 页面自动识别今天落在哪个阶段并高亮。
+
+---
+
+## 部署现状（已上线）
+
+| 项 | 值 |
+|---|---|
+| 仓库 | https://github.com/joep0623/daily-7k3m2 |
+| 线上地址 | https://joep0623.github.io/daily-7k3m2/ |
+| 分支 | `main`（`/(root)`） |
+| 可见性 | Public（免费版 Pages 只支持公开仓库） |
+| 本地路径 | `~/Documents/备考日程/` |
+
+---
+
+## ⚠️ 网络配置（重要，换电脑或重装系统要重做）
+
+这台机器**直连 `github.com:443` 是间歇性不通的**（被限流），但 `ssh.github.com:443` 稳定可达。
+所以 git 走的是 SSH over 443 隧道。
+
+`~/.ssh/config` 里必须有这段：
+
+```
+Host github.com
+  HostName ssh.github.com
+  Port 443
+  User git
+```
+
+验证命令：
+
+```bash
+ssh -T git@github.com
+# 应返回：Hi joep0623! You've successfully authenticated...
+```
+
+如果以后 push 卡住，先跑上面这条命令自检。
+
+---
 
 ## 加到主屏幕
 
