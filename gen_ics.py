@@ -13,6 +13,7 @@
 import json
 import os
 import re
+import shutil
 import subprocess
 import datetime
 import hashlib
@@ -45,12 +46,23 @@ var localStorage={getItem:function(){return null;},setItem:function(){}};
 var window={scrollTo:function(){}};
 function setInterval(){}
 """
-    tail = "\nJSON.stringify({TPL:TPL, WEEKS:WEEKS, SCHOOL_EVENTS:SCHOOL_EVENTS});\n"
-    tmp = '/tmp/_beikao_dump.js'
-    open(tmp, 'w', encoding='utf-8').write(stub + script + tail)
+    expr = "JSON.stringify({TPL:TPL, WEEKS:WEEKS, SCHOOL_EVENTS:SCHOOL_EVENTS})"
+    body = stub + script
 
-    r = subprocess.run(['osascript', '-l', 'JavaScript', tmp],
-                       capture_output=True, text=True)
+    tmp = os.path.join('/tmp', '_beikao_dump.js')
+
+    # macOS：用 JavaScriptCore（osascript）。末尾表达式即返回值。
+    if shutil.which('osascript'):
+        open(tmp, 'w', encoding='utf-8').write(body + '\n' + expr + ';\n')
+        r = subprocess.run(['osascript', '-l', 'JavaScript', tmp],
+                           capture_output=True, text=True)
+    # Linux/CI：用 node。需要显式打印。
+    elif shutil.which('node'):
+        open(tmp, 'w', encoding='utf-8').write(body + '\nconsole.log(' + expr + ');\n')
+        r = subprocess.run(['node', tmp], capture_output=True, text=True)
+    else:
+        raise SystemExit('找不到 osascript 或 node，无法从 index.html 提取数据')
+
     if r.returncode != 0 or not r.stdout.strip():
         raise SystemExit('提取数据失败：\n' + (r.stderr or '(无输出)'))
     return json.loads(r.stdout)
