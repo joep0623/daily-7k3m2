@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f1115">
+<title>备考日程</title>
+<style>
+:root{
+  --bg:#0f1115; --card:#181b21; --card2:#1f232b; --line:#2a2f39;
+  --fg:#e8eaed; --fg2:#9aa2b1; --fg3:#6b7280;
+  --study:#4a9eff; --body:#3ddc84; --love:#ff6b9d;
+  --school:#b388ff; --rest:#5a6272; --life:#ffa94d; --base:#ff5c5c;
+  --now:#ffd60a;
+  --glass:rgba(15,17,21,.9);
+  --tint-now:rgba(255,214,10,.12);
+  --tint-now-line:rgba(255,214,10,.4);
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --card2:#f0f2f5; --line:#e2e5ea;
+    --fg:#1a1d24; --fg2:#5a6272; --fg3:#8b93a1;
+    --study:#1d7fe8; --body:#12a55c; --love:#e0357a;
+    --school:#7c4dff; --rest:#98a0ae; --life:#d97516; --base:#e03b3b;
+    --now:#c79a00;
+    --glass:rgba(245,246,248,.9);
+    --tint-now:rgba(199,154,0,.12);
+    --tint-now-line:rgba(199,154,0,.4);
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:15px; line-height:1.5;
+  padding-bottom:calc(76px + env(safe-area-inset-bottom));
+  -webkit-font-smoothing:antialiased;
+}
+header{
+  position:sticky; top:0; z-index:20;
+  background:var(--glass);
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:saturate(180%) blur(14px);
+  -webkit-backdrop-filter:saturate(180%) blur(14px);
+  border-bottom:1px solid var(--line);
+  padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
+}
+.hd-top{display:flex; align-items:baseline; justify-content:space-between; gap:12px}
+.hd-title{font-size:17px; font-weight:700; letter-spacing:.2px}
+.hd-clock{font-size:13px; color:var(--fg2); font-variant-numeric:tabular-nums}
+.hd-sub{font-size:12.5px; color:var(--fg3); margin-top:3px}
+nav{
+  position:fixed; left:0; right:0; bottom:0; z-index:30;
+  display:flex;
+  background:var(--glass);
+  background:color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter:saturate(180%) blur(14px);
+  -webkit-backdrop-filter:saturate(180%) blur(14px);
+  border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+nav button{
+  flex:1; background:none; border:0; color:var(--fg3);
+  font:inherit; font-size:11px; padding:9px 0 8px;
+  display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer;
+}
+nav button .ic{font-size:17px; line-height:1}
+nav button.on{color:var(--study)}
+main{padding:14px 16px 20px; max-width:780px; margin:0 auto}
+section{display:none}
+section.on{display:block; animation:fade .18s ease-out}
+@keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+/* ---------- 今日 ---------- */
+.nowbar{
+  background:var(--card); border:1px solid var(--line); border-radius:14px;
+  padding:14px 16px; margin-bottom:14px;
+}
+.nowbar .lbl{font-size:11.5px; color:var(--now); font-weight:700; letter-spacing:.8px}
+.nowbar .cur{font-size:19px; font-weight:700; margin-top:5px}
+.nowbar .meta{font-size:12.5px; color:var(--fg2); margin-top:4px}
+.nowbar .bar{height:5px; background:var(--card2); border-radius:3px; margin-top:11px; overflow:hidden}
+.nowbar .bar i{display:block; height:100%; background:var(--now); border-radius:3px; transition:width .4s}
+.nowbar .nxt{font-size:12.5px; color:var(--fg2); margin-top:9px}
+.nowbar .nxt b{color:var(--fg); font-weight:600}
+
+.tl{position:relative}
+.row{
+  display:flex; gap:12px; padding:9px 4px; border-radius:10px; cursor:pointer;
+  transition:background .15s;
+}
+.row:active{background:var(--card2)}
+.row .tm{
+  flex:0 0 52px; font-size:12px; color:var(--fg3); text-align:right;
+  font-variant-numeric:tabular-nums; padding-top:2px; line-height:1.35;
+}
+.row .tm .e{display:block; font-size:11px; opacity:.62}
+.row .bd{flex:1; min-width:0; border-left:3px solid var(--rest); padding-left:11px; padding-top:1px; padding-bottom:1px}
+.row .tt{font-size:14.5px; line-height:1.42; word-break:break-word}
+.row .tag{font-size:10.5px; color:var(--fg3); margin-top:3px}
+.row.study .bd{border-color:var(--study)}
+.row.body  .bd{border-color:var(--body)}
+.row.love  .bd{border-color:var(--love)}
+.row.school .bd{border-color:var(--school)}
+.row.life  .bd{border-color:var(--life)}
+.row.base  .bd{border-color:var(--base)}
+.row.past{opacity:.38}
+.row.live{background:var(--tint-now); box-shadow:inset 0 0 0 1px var(--tint-now-line)}
+.row.live .tt{font-weight:700}
+.row.done .tt{text-decoration:line-through; opacity:.45}
+.pillnow{
+  display:inline-block; font-size:10px; font-weight:700; color:#0f1115; background:var(--now);
+  border-radius:4px; padding:0 5px; margin-left:7px; vertical-align:1.5px;
+}
+.nexthint{font-size:12.5px; color:var(--fg2); margin-top:6px}
+.nexthint b{color:var(--fg); font-weight:600}
+
+.notes{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 15px; margin-top:14px}
+.notes .nt{font-size:11.5px; color:var(--fg3); font-weight:700; letter-spacing:.6px; margin-bottom:7px}
+.notes ul{margin:0; padding-left:17px; color:var(--fg2); font-size:13px}
+.notes li{margin:5px 0}
+
+/* ---------- 本周 ---------- */
+.dcard{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 15px; margin-bottom:11px}
+.dcard.today{border-color:color-mix(in srgb, var(--now) 55%, var(--line))}
+.dh{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:9px}
+.dh .d1{font-size:15px; font-weight:700}
+.dh .d2{font-size:12px; color:var(--fg3)}
+.dl{list-style:none; margin:0; padding:0}
+.dl li{display:flex; gap:9px; font-size:13px; padding:3.5px 0; color:var(--fg2)}
+.dl li .t{flex:0 0 48px; font-size:11.5px; color:var(--fg3); font-variant-numeric:tabular-nums; padding-top:1.5px}
+.dl li .n{flex:1; word-break:break-word}
+.dl li.hi .n{color:var(--fg); font-weight:600}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:1px;vertical-align:0}
+.dot.study{background:var(--study)} .dot.body{background:var(--body)}
+.dot.love{background:var(--love)} .dot.school{background:var(--school)}
+.dot.rest{background:var(--rest)} .dot.life{background:var(--life)} .dot.base{background:var(--base)}
+
+/* ---------- 通用 ---------- */
+h2{font-size:14px; font-weight:700; color:var(--fg); margin:22px 0 9px; letter-spacing:.3px}
+h2:first-child{margin-top:4px}
+.box{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:12px}
+.box.warn{border-color:color-mix(in srgb, var(--base) 42%, var(--line))}
+.box ul{margin:0; padding-left:18px; font-size:13.5px; color:var(--fg2)}
+.box ul li{margin:7px 0}
+.box ul li b{color:var(--fg)}
+.box ol{margin:0; padding-left:19px; font-size:13.5px; color:var(--fg2)}
+.box ol li{margin:7px 0}
+.muted{font-size:12.5px; color:var(--fg3); margin-top:8px; line-height:1.55}
+.ck{list-style:none; margin:0; padding:0}
+.ck li{display:flex; gap:10px; align-items:flex-start; font-size:13.5px; color:var(--fg2); padding:8px 0; border-bottom:1px solid var(--line); cursor:pointer}
+.ck li:last-child{border-bottom:0}
+.ck .bx{
+  flex:0 0 19px; height:19px; border:1.5px solid var(--line); border-radius:6px; margin-top:1px;
+  display:flex; align-items:center; justify-content:center; font-size:12px; color:transparent; transition:.15s;
+}
+.ck li.ok .bx{background:var(--body); border-color:var(--body); color:#0f1115}
+.ck li.ok span{text-decoration:line-through; opacity:.45}
+table{width:100%; border-collapse:collapse; font-size:13px}
+th,td{text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); vertical-align:top}
+th{color:var(--fg3); font-weight:600; font-size:11.5px; letter-spacing:.4px}
+td{color:var(--fg2)}
+td:first-child{color:var(--fg); font-weight:600; white-space:nowrap}
+.lvl{display:inline-block; font-size:11px; font-weight:700; padding:1px 7px; border-radius:5px; margin-bottom:8px}
+.lvl.g{background:color-mix(in srgb, var(--body) 22%, transparent); color:var(--body)}
+.lvl.y{background:color-mix(in srgb, var(--life) 22%, transparent); color:var(--life)}
+.lvl.r{background:color-mix(in srgb, var(--base) 22%, transparent); color:var(--base)}
+.kv{display:flex; justify-content:space-between; font-size:13px; padding:7px 0; border-bottom:1px solid var(--line)}
+.kv:last-child{border-bottom:0}
+.kv .k{color:var(--fg2)}
+.kv .v{color:var(--fg); font-weight:600; font-variant-numeric:tabular-nums}
+@media(max-width:430px){
+  main{padding:12px 13px 20px}
+  header{padding-left:13px; padding-right:13px}
+  .row .tm{flex-basis:46px; font-size:11.5px}
+  .row .tt{font-size:14px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd-top">
+    <div class="hd-title" id="hdTitle">—</div>
+    <div class="hd-clock" id="hdClock">--:--</div>
+  </div>
+  <div class="hd-sub" id="hdSub">—</div>
+</header>
+
+<main>
+  <section id="vToday" class="on"></section>
+  <section id="vWeek"></section>
+  <section id="vRules"></section>
+  <section id="vSOS"></section>
+</main>
+
+<nav>
+  <button class="on" data-v="vToday"><span class="ic">◉</span>今日</button>
+  <button data-v="vWeek"><span class="ic">▤</span>本周</button>
+  <button data-v="vRules"><span class="ic">✓</span>规范</button>
+  <button data-v="vSOS"><span class="ic">!</span>应急</button>
+</nav>
+
+<script>
+/* ================================================================
+   ★★★ 每周只需要改这一段 ★★★
+   在 WEEKS 数组最前面加一个新周对象即可，旧周保留（可回看）
+   ================================================================ */
+
+const B = (s, e, t, k) => ({ s, e, t, k });
+
+const TPL = {
+  workday: [
+    B('07:30','08:00','起床、早餐','life'),
+    B('08:00','08:40','墨墨背单词（50 新词 + 复习）','study'),
+    B('08:40','09:00','机动 / 通勤','rest'),
+    B('09:00','11:30','生理网课 + 当天章节真题','study'),
+    B('11:30','13:00','午饭 + 午休 45min（必睡）','life'),
+    B('13:00','15:00','诊断学（学校跟进 / 症状学真题）','study'),
+    B('15:00','15:30','休息','rest'),
+    B('15:30','16:15','心电图专项 / 生化默画通路','study'),
+    B('16:15','17:30','机动（补漏、实验课、临时事务）','rest'),
+    B('17:30','18:30','晚饭 + 散步','life'),
+    B('18:30','19:15','英语长难句 5 句','study'),
+    B('19:15','19:45','复盘 + 错题归类','study'),
+    B('19:45','20:00','机动','rest'),
+    B('20:00','22:00','健身 + 洗澡','body'),
+    B('22:00','24:00','自由（社交 / 娱乐）','rest'),
+    B('24:00','24:30','洗漱降速，不碰手机','base'),
+  ]
+};
+
+const WEEKS = [
+{
+  id: 0,
+  title: '第 0 周 · 启动周',
+  range: '10/8 – 10/11',
+  note: '本周目标不是冲量，是把系统搭起来。量刻意压到平时的 60%。',
+  days: [
+    {
+      date: '2026-10-08', label: '周四', tag: '启动日',
+      blocks: [
+        B('15:00','15:30','装墨墨背单词，设每天 50 新词','study'),
+        B('15:30','16:30','试听生理课：侯英健 30min + 隋准 30min，二选一','study'),
+        B('16:30','17:00','建错题本（纸质活页 或 手机截图相册）','study'),
+        B('17:00','18:30','晚饭 + 自由','life'),
+        B('18:30','20:00','机动：随便做两句英语长难句，不用勉强','rest'),
+        B('20:00','22:00','健身 + 洗澡','body'),
+        B('22:00','24:00','自由','rest'),
+        B('24:00','24:30','洗漱降速，不碰手机','base'),
+      ],
+      notes: [
+        '今天不追求学习量，只做三件事：装墨墨 → 选生理老师 → 建错题本',
+        '不要囤资料。现在只用：1 个老师的课 + 1 本讲义 + 历年真题',
+      ]
+    },
+    {
+      date: '2026-10-09', label: '周五',
+      blocks: TPL.workday,
+      notes: ['第一天跑完整模板，生理从第 1 讲开始', '15:30 那个时段今天用来搭错题本系统']
+    },
+    {
+      date: '2026-10-10', label: '周六', tag: '下午 4 点后有空',
+      blocks: [
+        B('08:00','16:00','上课（诊断学相关的课认真听，零成本窗口）','school'),
+        B('16:00','17:00','单词（补当天 + 复习）','study'),
+        B('17:00','18:00','晚饭','life'),
+        B('18:00','20:00','生理 2h：第 1–2 讲 + 对应真题','study'),
+        B('20:00','22:00','健身 ／ 约会（二选一，你定）','body'),
+        B('22:00','24:00','自由','rest'),
+        B('24:00','24:30','洗漱降速','base'),
+      ],
+      notes: ['今天没有家教，是额外赚到的一天']
+    },
+    {
+      date: '2026-10-11', label: '周日', tag: '全天自由',
+      blocks: [
+        B('09:00','10:00','自然醒，不设闹钟（不超 10:00）','rest'),
+        B('10:00','13:00','完全自由 / 约会','love'),
+        B('13:00','13:30','午饭','life'),
+        B('13:30','15:30','诊断学 2h：症状学笔记 + 306 病例题试做','study'),
+        B('15:30','17:00','英语真题精读 1 篇','study'),
+        B('17:00','19:00','晚饭 + 自由','life'),
+        B('19:00','20:00','第 0 周复盘 + 排第 1 周计划','study'),
+        B('20:00','22:00','健身 + 洗澡','body'),
+        B('22:00','24:00','自由','rest'),
+        B('24:00','24:30','洗漱降速','base'),
+      ],
+      notes: [
+        '这是唯一一周下午两件都做。下周起严格「二选一」',
+        '晚上复盘时把「本周待确认」5 件事过一遍（在「规范」页）'
+      ]
+    },
+  ]
+}
+];
+
+/* ================================================================
+   以下为渲染逻辑，一般不用改
+   ================================================================ */
+
+const RULES = {
+  never: [
+    '<b>单词</b> —— 家教日、生病日、崩溃日都不例外',
+    '<b>睡眠 7 小时（00:30–07:30）</b> —— 宁可砍西综，不砍睡眠',
+    '<b>健身</b> —— 周三、周六可跳，其余不动',
+    '<b>约会窗口（周三晚 + 周日上午）</b> —— 关系的基建，不是消耗品',
+    '<b>诊断学</b> —— 学校正在教，唯一的零成本窗口',
+  ],
+  flex: [
+    '① 15:30–16:15 心电图 / 生化默画',
+    '② 周日下午的学习',
+    '③ 工作日机动块',
+  ],
+  todo: [
+    '① 初试年份 —— 2027/12 还是 2028/12？（最重要，决定整张表的量级）',
+    '② 目标院校 3–5 所 —— 去研究生院官网下《招生专业目录》，确认考 306 还是 699',
+    '③ 生理老师 —— 侯英健 or 隋准',
+    '④ 诊断学课表 —— 理论课、实操课分别在周几？（实操课必去）',
+    '⑤ 家教时间 —— 本学期固定在哪天、几点到几点？',
+  ],
+  goals: [
+    ['单词', '累计 3000+'],
+    ['生理', '一轮完，章节真题正确率 ≥ 70%'],
+    ['诊断学', '症状学 + 体格检查跟上学校；心电图单独过一遍'],
+    ['英语', '真题精读累计 30 篇'],
+    ['期末', '不挂科'],
+    ['底线三项', '健身、睡眠 7h、约会窗口 没断'],
+  ],
+  notNow: '本学期不碰：政治、西综成套真题、外科、生化（寒假再说）。'
+};
+
+const SOS = {
+  g: [
+    ['临时邀约（提前 ≥24h）', '答应。从下周窗口抵扣，一周最多 1 次'],
+    ['临时邀约（当天才说）', '能推就推到最近的窗口；推不掉就去，当晚只做机械任务'],
+    ['她情绪不好 / 有事需要你', '<b>无条件下调当天计划</b>。这<b>不占</b>临时邀约名额'],
+    ['只是累、困、坐不住', '午休延长到 1.5h；砍掉 15:30 那个时段'],
+    ['学不进去，坐着发呆', '立刻切机械任务（抄框架、整错题、背单词）；30min 后还不行，出门走 15min'],
+    ['家教临时加课 / 改时间', '用 16:15–17:30 机动块吸收；不够再砍心电图时段'],
+  ],
+  y: [
+    ['生病（发烧、肠胃）', '停西综，只保单词（躺床上刷）+ 睡眠。<b>不硬撑</b>'],
+    ['实验课 / 考试周', '砍西综，保单词 + 诊断（诊断就是考试内容，等于复习）'],
+    ['睡不到 7h 连续 3 天', '当晚提前 00:00 睡，砍掉 22:00–00:00 自由时间'],
+    ['健身中断 ≥ 3 天', '恢复时<b>降强度</b>，别一上来就上大重量'],
+    ['崩了一天', '<b>不补</b>，第二天照常。补课是坏习惯的开始'],
+  ],
+  r: [
+    ['崩了一周', '进入<b>保底模式</b>：单词 + 健身 + 睡眠 7h，西综全停。下周从最新进度接，不追债'],
+    ['连续两周崩', '说明日程本身不现实。<b>砍掉 15:30 时段 + 周日下午学习</b>，重新排'],
+    ['情绪持续低落 > 2 周', '这不是意志力问题。找人聊，必要的话找学校心理咨询（免费）'],
+  ],
+  date: [
+    ['固定窗口', '周三 18:30–22:30 ｜ 周日 10:00–13:00 ｜ 周六晚（可选）'],
+    ['临时邀约', '提前 <b>≥24h</b> 说 → 允许，一周最多 1 次，超出从下周窗口抵扣'],
+    ['当天临时', '能推则推。推不掉就去，当晚只做机械任务'],
+    ['她的情绪 / 急事', '<b>不占名额，无条件优先</b>'],
+    ['长假 / 纪念日', '提前规划，放在寒暑假。学期内不临时加码'],
+    ['谈的时候', '说「时间被切碎了我学不进去」，<b>不说「我不想陪你」</b>'],
+  ]
+};
+
+/* ---------- 时间工具 ---------- */
+const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+const fmt   = m => String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+const parseD= s => { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); };
+
+/* 凌晨（0:00–7:00）算作前一天，避免跨夜错位 */
+function logicalNow(){
+  const n = new Date();
+  const mins = n.getHours()*60 + n.getMinutes();
+  const d = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  if (mins < 420) { d.setDate(d.getDate()-1); return { date:d, mins: mins+1440 }; }
+  return { date:d, mins };
+}
+const ymd = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+
+const KIND = { study:'学习', body:'身体', love:'约会', school:'学校', life:'生活', rest:'自由', base:'底线' };
+
+/* ---------- 状态 ---------- */
+let weekIdx = 0;
+const week = WEEKS[weekIdx];
+let todayKey = ymd(logicalNow().date);
+
+/* ---------- 顶部 ---------- */
+function renderHead(){
+  const { date, mins } = logicalNow();
+  const day = week.days.find(d => d.date === ymd(date));
+  document.getElementById('hdTitle').textContent = week.title;
+  document.getElementById('hdClock').textContent = fmt(mins);
+  const dstr = (date.getMonth()+1)+'月'+date.getDate()+'日';
+  const wd = ['周日','周一','周二','周三','周四','周五','周六'][date.getDay()];
+  document.getElementById('hdSub').textContent =
+    week.range + ' · ' + dstr + ' ' + wd + (day ? ' · ' + (day.tag || '') : ' · 本周计划外');
+}
+
+/* ---------- 今日 ---------- */
+function renderToday(){
+  const { date, mins } = logicalNow();
+  const key = ymd(date);
+  const day = week.days.find(d => d.date === key);
+  const el = document.getElementById('vToday');
+
+  if (!day){
+    el.innerHTML = '<div class="box">今天（'+key+'）不在本周计划里。<br><span class="muted">周日复盘时告诉我下周安排，我加进来。</span></div>';
+    return;
+  }
+
+  const blocks = day.blocks.map(b => ({ ...b, sm: toMin(b.s), em: toMin(b.e) }));
+  const live = blocks.find(b => mins >= b.sm && mins < b.em);
+  const next = blocks.find(b => b.sm > mins);
+
+  let head = '';
+  if (live){
+    const pct = Math.round((mins - live.sm) / (live.em - live.sm) * 100);
+    const left = live.em - mins;
+    head = '<div class="nowbar">'
+      + '<div class="lbl">◆ 正在进行</div>'
+      + '<div class="cur">'+live.t+'</div>'
+      + '<div class="meta">'+fmt(live.sm)+' – '+fmt(live.em)+' ／ 还剩 '+(left>=60?Math.floor(left/60)+' 小时 '+(left%60?left%60+' 分':'').trim():left+' 分钟')+'</div>'
+      + '<div class="bar"><i style="width:'+pct+'%"></i></div>'
+      + (next ? '<div class="nxt">下一项：<b>'+fmt(next.sm)+' '+next.t+'</b></div>' : '<div class="nxt">今天最后一项了</div>')
+      + '</div>';
+  } else {
+    const doneAll = mins >= blocks[blocks.length-1].em;
+    head = '<div class="nowbar">'
+      + '<div class="lbl">'+(doneAll?'◆ 今天已结束':'◆ 自由时间')+'</div>'
+      + '<div class="cur">'+(doneAll ? '该睡了' : (next ? '下一项：'+next.t : '今天没有更多安排'))+'</div>'
+      + (next ? '<div class="meta">'+fmt(next.sm)+' 开始 ／ 还有 '+Math.floor((next.sm-mins)/60)+' 小时 '+((next.sm-mins)%60)+' 分</div>' : '')
+      + '</div>';
+  }
+
+  const rows = blocks.map((b,i) => {
+    const past = mins >= b.em, isLive = live === b;
+    const dk = 'ck:'+key+':'+i;
+    const done = localStorage.getItem(dk) === '1';
+    const cls = ['row', b.k, past?'past':'', isLive?'live':'', done?'done':''].filter(Boolean).join(' ');
+    return '<div class="'+cls+'" data-ck="'+dk+'">'
+      + '<div class="tm">'+fmt(b.sm)+'<span class="e">'+fmt(b.em)+'</span></div>'
+      + '<div class="bd"><div class="tt">'+b.t+(isLive?'<span class="pillnow">现在</span>':'')+'</div>'
+      + '<div class="tag">'+KIND[b.k]+'</div></div></div>';
+  }).join('');
+
+  let notes = '';
+  if (day.notes && day.notes.length){
+    notes = '<div class="notes"><div class="nt">今日提醒</div><ul>'
+      + day.notes.map(n=>'<li>'+n+'</li>').join('') + '</ul></div>';
+  }
+
+  el.innerHTML = head + '<div class="tl">'+rows+'</div>' + notes;
+}
+
+/* ---------- 本周 ---------- */
+function renderWeek(){
+  const el = document.getElementById('vWeek');
+  el.innerHTML = '<div class="box"><div style="font-size:13.5px;color:var(--fg2)">'+week.note+'</div>'
+    + '<div class="muted">周学习总量：表上 ≈ 40h，实际落地 30–35h。原则：表要排满，执行留缺口。</div></div>'
+    + week.days.map(d => {
+      const isToday = d.date === todayKey;
+      const lis = d.blocks.map(b => {
+        const hm = toMin(b.e) - toMin(b.s) >= 150;
+        return '<li class="'+(hm?'hi':'')+'"><span class="t">'+b.s+'</span>'
+          + '<span class="n"><span class="dot '+b.k+'"></span> '+b.t+'</span></li>';
+      }).join('');
+      const wd = ['周日','周一','周二','周三','周四','周五','周六'][parseD(d.date).getDay()];
+      return '<div class="dcard '+(isToday?'today':'')+'">'
+        + '<div class="dh"><div class="d1">'+d.label+(d.tag?' <span style="font-size:11.5px;color:var(--fg3);font-weight:400">'+d.tag+'</span>':'')+'</div>'
+        + '<div class="d2">'+(parseD(d.date).getMonth()+1)+'/'+parseD(d.date).getDate()+'</div></div>'
+        + '<ul class="dl">'+lis+'</ul></div>';
+    }).join('');
+}
+
+/* ---------- 规范 ---------- */
+function renderRules(){
+  const el = document.getElementById('vRules');
+  el.innerHTML =
+    '<h2>底线清单 · 永远不砍</h2><div class="box"><ul>'
+      + RULES.never.map(x=>'<li>'+x+'</li>').join('') + '</ul></div>'
+    + '<h2>弹性区 · 可砍顺序</h2><div class="box"><ol>'
+      + RULES.flex.map(x=>'<li>'+x+'</li>').join('') + '</ol>'
+      + '<div class="muted">从上往下砍，砍到能转为止，别跳着砍。</div></div>'
+    + '<h2>本周必须确认（5 件事）</h2><div class="box"><ul class="ck" id="todoList">'
+      + RULES.todo.map((x,i)=>'<li data-k="todo:'+i+'"><span class="bx">✓</span><span>'+x+'</span></li>').join('')
+      + '</ul><div class="muted">这 5 个不定，下周的排表就是空中楼阁。</div></div>'
+    + '<h2>本学期目标（到 2027/1）</h2><div class="box">'
+      + RULES.goals.map(g=>'<div class="kv"><span class="k">'+g[0]+'</span><span class="v">'+g[1]+'</span></div>').join('')
+      + '<div class="muted">'+RULES.notNow+'</div></div>';
+}
+
+/* ---------- 应急 ---------- */
+function renderSOS(){
+  const el = document.getElementById('vSOS');
+  const table = rows => '<table><tbody>'
+    + rows.map(r=>'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>').join('')
+    + '</tbody></table>';
+
+  el.innerHTML =
+      '<h2>一级 · 当天调整</h2><div class="box">'+table(SOS.g)+'</div>'
+    + '<h2>二级 · 本周调整</h2><div class="box">'+table(SOS.y)+'</div>'
+    + '<h2>三级 · 止损</h2><div class="box">'+table(SOS.r)+'</div>'
+    + '<div class="box warn" style="margin-top:16px">'
+    +   '<div style="font-size:13.5px;color:var(--fg);font-weight:700">核心原则</div>'
+    +   '<div class="muted">计划服从人，不是人服从计划。</div></div>'
+    + '<h2>约会专项预案</h2><div class="box">'+table(SOS.date)
+    +   '<div class="muted">必须做的一件事：把这张表给她看。人会尊重看得见的东西。</div></div>';
+}
+
+/* ---------- 交互 ---------- */
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b===btn));
+    document.querySelectorAll('main section').forEach(s=>s.classList.toggle('on', s.id===btn.dataset.v));
+    window.scrollTo(0,0);
+  };
+});
+
+document.addEventListener('click', e => {
+  const row = e.target.closest('[data-ck]');
+  if (row){
+    const k = row.dataset.ck;
+    const on = localStorage.getItem(k) === '1';
+    localStorage.setItem(k, on ? '0' : '1');
+    row.classList.toggle('done', !on);
+    return;
+  }
+  const li = e.target.closest('#todoList li');
+  if (li){
+    const k = li.dataset.k;
+    const on = localStorage.getItem(k) === '1';
+    localStorage.setItem(k, on ? '0' : '1');
+    li.classList.toggle('ok', !on);
+  }
+});
+
+/* 恢复勾选状态 */
+function restore(){
+  document.querySelectorAll('#todoList li').forEach(li=>{
+    if (localStorage.getItem(li.dataset.k) === '1') li.classList.add('ok');
+  });
+}
+
+/* ---------- 启动 ---------- */
+let lastKey = todayKey;
+function tick(){
+  const { date } = logicalNow();
+  if (ymd(date) !== lastKey){ lastKey = ymd(date); todayKey = ymd(date); renderAll(); return; }
+  renderHead(); renderToday();
+}
+function renderAll(){ renderHead(); renderToday(); renderWeek(); renderRules(); renderSOS(); restore(); }
+renderAll();
+setInterval(tick, 30000);
+</script>
+</body>
+</html>
