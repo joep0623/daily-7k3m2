@@ -192,10 +192,12 @@
 
 | 方案 | 可行性 | 说明 |
 |---|---|---|
-| **远程桌面回 Mac** ⭐ | ✅ | ToDesk / 向日葵（国产，国内稳定，iPhone+Mac 客户端齐全）。环境与本地完全一致 |
+| **网易 UU 远程** ✅ **已采用** | ✅ | 用户已装好并调试完毕。手机连回 Mac 操作 Cherry Studio，**环境与本地完全一致** |
 | **GitHub 手机 App 改文件** | ✅ | Action 会自动重算 `schedule.ics`，所以这条路是完整的。适合改时间数字，不适合复杂重排 |
 | Claude Code 网页版 | ❌ | 区域限制 |
 | 手机 SSH 到 Mac | ⚠️ | 只能跑命令，Cherry Studio 的 agent 没有 CLI 入口 |
+
+**远程桌面的前提**：Mac 需保持开机联网，且在「节能」里关闭自动睡眠。
 
 **已配好的自动化**：`.github/workflows/gen-ics.yml` —— 只要 `index.html` 变了，GitHub 自动重跑 `gen_ics.py` 并提交新 `schedule.ics`（ubuntu runner）。
 **所以本地流程简化为**：改 `index.html` → commit → push（**不必再手动跑 gen_ics.py**）。
