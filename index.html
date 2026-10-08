@@ -52,6 +52,13 @@ header{
 .hd-title{font-size:17px; font-weight:700; letter-spacing:.2px}
 .hd-clock{font-size:13px; color:var(--fg2); font-variant-numeric:tabular-nums}
 .hd-sub{font-size:12.5px; color:var(--fg3); margin-top:3px}
+.hd-title b{color:var(--now); font-size:21px; font-variant-numeric:tabular-nums; letter-spacing:-.3px}
+.hd-stage{
+  display:inline-block; font-size:11px; font-weight:700; letter-spacing:.3px;
+  padding:2.5px 9px; border-radius:20px; margin-top:7px;
+  background:var(--tint-now); color:var(--now); border:1px solid var(--tint-now-line);
+}
+.hd-stage.off{display:none}
 nav{
   position:fixed; left:0; right:0; bottom:0; z-index:30;
   display:flex;
@@ -172,6 +179,21 @@ td:first-child{color:var(--fg); font-weight:600; white-space:nowrap}
 .kv:last-child{border-bottom:0}
 .kv .k{color:var(--fg2)}
 .kv .v{color:var(--fg); font-weight:600; font-variant-numeric:tabular-nums}
+
+/* ---------- 路线图 ---------- */
+.stage{display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--line)}
+.stage:last-child{border-bottom:0}
+.stage .sn{flex:0 0 20px; font-weight:700; font-size:12px; color:var(--fg3); padding-top:1.5px}
+.stage .sb{flex:1; min-width:0}
+.stage .t1{font-size:13.5px; color:var(--fg2); font-weight:600}
+.stage .t2{font-size:11.5px; color:var(--fg3); margin-top:2px; line-height:1.5}
+.stage.past{opacity:.4}
+.stage.now{
+  background:var(--tint-now); border-radius:10px; padding-left:10px; padding-right:10px;
+  border-bottom-color:transparent; box-shadow:inset 0 0 0 1px var(--tint-now-line);
+}
+.stage.now .sn,.stage.now .t1{color:var(--now)}
+.stage.now .t1{font-weight:700}
 @media(max-width:430px){
   main{padding:12px 13px 20px}
   header{padding-left:13px; padding-right:13px}
@@ -187,6 +209,7 @@ td:first-child{color:var(--fg); font-weight:600; white-space:nowrap}
     <div class="hd-title" id="hdTitle">—</div>
     <div class="hd-clock" id="hdClock">--:--</div>
   </div>
+  <div class="hd-stage" id="hdStage">—</div>
   <div class="hd-sub" id="hdSub">—</div>
 </header>
 
@@ -211,6 +234,20 @@ td:first-child{color:var(--fg); font-weight:600; white-space:nowrap}
    ================================================================ */
 
 const B = (s, e, t, k) => ({ s, e, t, k });
+
+/* ★ 初试日期。确认年份后，改这一行就行（倒计时会自动重算） */
+const EXAM_DATE = '2028-12-23';
+
+/* ★ 全程路线图。页面自动识别今天落在哪个阶段并高亮，不用手动切 */
+const STAGES = [
+  { n:'A', name:'打地基',       when:'大三上',   from:'2026-10-01', to:'2027-01-31', desc:'课内扎实 + 英语起步 + 生理推进' },
+  { n:'B', name:'西综一轮前半', when:'大三下',   from:'2027-02-01', to:'2027-06-30', desc:'生理 → 生化 → 病理，每章配真题' },
+  { n:'C', name:'黄金期',       when:'大三暑假', from:'2027-07-01', to:'2027-08-31', desc:'内科 → 外科，一轮收尾。唯一整块时间' },
+  { n:'D', name:'西综二轮',     when:'大四上',   from:'2027-09-01', to:'2028-01-31', desc:'近 15 年真题成套刷，建错题本' },
+  { n:'E', name:'西综三轮',     when:'大四下',   from:'2028-02-01', to:'2028-07-31', desc:'专攻错题与薄弱章节' },
+  { n:'F', name:'强化期',       when:'大五上',   from:'2028-08-01', to:'2028-10-31', desc:'政治启动（徐涛 + 1000 题），西综真题第 3 遍' },
+  { n:'G', name:'冲刺期',       when:'实习中',   from:'2028-11-01', to:'2028-12-31', desc:'肖四背诵 + 西综错题本 + 英语作文' },
+];
 
 const TPL = {
   workday: [
@@ -382,20 +419,41 @@ const ymd = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+
 const KIND = { study:'学习', body:'身体', love:'约会', school:'学校', life:'生活', rest:'自由', base:'底线' };
 
 /* ---------- 状态 ---------- */
-let weekIdx = 0;
-const week = WEEKS[weekIdx];
 let todayKey = ymd(logicalNow().date);
+
+/* 自动选中「今天」所在的那一周；今天不在任何一周里就停在最新一周 */
+function pickWeekIdx(){
+  const i = WEEKS.findIndex(w => w.days.some(d => d.date === todayKey));
+  return i >= 0 ? i : WEEKS.length - 1;
+}
+let weekIdx = pickWeekIdx();
+let week = WEEKS[weekIdx];
+
+/* 当前所处阶段（自动识别） */
+function currentStage(){
+  const t = logicalNow().date;
+  return STAGES.find(s => t >= parseD(s.from) && t <= parseD(s.to)) || null;
+}
 
 /* ---------- 顶部 ---------- */
 function renderHead(){
   const { date, mins } = logicalNow();
   const day = week.days.find(d => d.date === ymd(date));
-  document.getElementById('hdTitle').textContent = week.title;
+
+  const left = Math.ceil((parseD(EXAM_DATE) - date) / 86400000);
+  document.getElementById('hdTitle').innerHTML =
+    left >= 0 ? '距初试 <b>' + left + '</b> 天' : '初试已过 <b>' + (-left) + '</b> 天';
   document.getElementById('hdClock').textContent = fmt(mins);
+
+  const st = currentStage();
+  const el = document.getElementById('hdStage');
+  if (st){ el.className = 'hd-stage'; el.textContent = '阶段 ' + st.n + ' · ' + st.name + '（' + st.when + '）'; }
+  else { el.className = 'hd-stage off'; }
+
   const dstr = (date.getMonth()+1)+'月'+date.getDate()+'日';
   const wd = ['周日','周一','周二','周三','周四','周五','周六'][date.getDay()];
   document.getElementById('hdSub').textContent =
-    week.range + ' · ' + dstr + ' ' + wd + (day ? ' · ' + (day.tag || '') : ' · 本周计划外');
+    week.title + ' · ' + dstr + ' ' + wd + (day && day.tag ? ' · ' + day.tag : '');
 }
 
 /* ---------- 今日 ---------- */
@@ -475,10 +533,25 @@ function renderWeek(){
 }
 
 /* ---------- 规范 ---------- */
+function stageList(){
+  const cur = currentStage();
+  const t = logicalNow().date;
+  return STAGES.map(s => {
+    const cls = (cur && s.n === cur.n) ? 'stage now' : (parseD(s.to) < t ? 'stage past' : 'stage');
+    const badge = (cur && s.n === cur.n) ? ' <span style="font-size:10.5px">◆ 当前</span>' : '';
+    return '<div class="'+cls+'"><div class="sn">'+s.n+'</div><div class="sb">'
+      + '<div class="t1">'+s.name+' · '+s.when+badge+'</div>'
+      + '<div class="t2">'+s.desc+'</div>'
+      + '<div class="t2" style="opacity:.72">'+s.from.replace(/-/g,'/')+' – '+s.to.replace(/-/g,'/')+'</div>'
+      + '</div></div>';
+  }).join('');
+}
+
 function renderRules(){
   const el = document.getElementById('vRules');
   el.innerHTML =
-    '<h2>底线清单 · 永远不砍</h2><div class="box"><ul>'
+    '<h2>全程路线图</h2><div class="box">'+stageList()+'</div>'
+    + '<h2>底线清单 · 永远不砍</h2><div class="box"><ul>'
       + RULES.never.map(x=>'<li>'+x+'</li>').join('') + '</ul></div>'
     + '<h2>弹性区 · 可砍顺序</h2><div class="box"><ol>'
       + RULES.flex.map(x=>'<li>'+x+'</li>').join('') + '</ol>'
@@ -547,7 +620,14 @@ function restore(){
 let lastKey = todayKey;
 function tick(){
   const { date } = logicalNow();
-  if (ymd(date) !== lastKey){ lastKey = ymd(date); todayKey = ymd(date); renderAll(); return; }
+  if (ymd(date) !== lastKey){
+    lastKey = ymd(date);
+    todayKey = ymd(date);
+    weekIdx = pickWeekIdx();
+    week = WEEKS[weekIdx];
+    renderAll();
+    return;
+  }
   renderHead(); renderToday();
 }
 function renderAll(){ renderHead(); renderToday(); renderWeek(); renderRules(); renderSOS(); restore(); }
