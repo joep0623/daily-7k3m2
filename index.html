@@ -162,8 +162,34 @@ section.on{display:block; animation:fade .18s ease-out}
 .notes li{margin:5px 0}
 
 /* ---------- 本周 ---------- */
-.dcard{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 15px; margin-bottom:11px}
+.dcard{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 15px; margin-bottom:11px; cursor:pointer; transition:transform .12s, border-color .15s}
+.dcard:active{transform:scale(.985)}
+.dcard:hover{border-color:color-mix(in srgb, var(--study) 45%, var(--line))}
 .dcard.today{border-color:color-mix(in srgb, var(--now) 55%, var(--line))}
+.dcard .more{font-size:11px; color:var(--fg3); margin-top:8px; padding-top:8px; border-top:1px dashed var(--line); display:flex; justify-content:space-between}
+.dcard .more b{color:var(--study); font-weight:600}
+
+/* ---------- 当天详情弹层 ---------- */
+.sheet{position:fixed; inset:0; z-index:50; display:none}
+.sheet.on{display:block}
+.sheet-mask{position:absolute; inset:0; background:rgba(0,0,0,.55); animation:fade .18s ease-out}
+.sheet-box{
+  position:absolute; left:50%; transform:translateX(-50%); bottom:0; width:100%; max-width:640px;
+  max-height:88vh; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  background:var(--bg); border-radius:20px 20px 0 0;
+  border-top:1px solid var(--line);
+  padding:16px 16px calc(24px + env(safe-area-inset-bottom));
+  animation:up .22s cubic-bezier(.2,.9,.3,1);
+}
+@keyframes up{from{transform:translate(-50%,100%)}to{transform:translate(-50%,0)}}
+.sheet-top{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px}
+.sheet-t{font-size:16.5px; font-weight:700}
+.sheet-t .s2{display:block; font-size:12px; color:var(--fg3); font-weight:400; margin-top:3px}
+.sheet-x{
+  flex:0 0 32px; height:32px; border-radius:50%; border:1px solid var(--line);
+  background:var(--card); color:var(--fg2); font-size:15px; cursor:pointer; line-height:1;
+}
+.sheet-x:active{background:var(--card2)}
 .dh{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:9px}
 .dh .d1{font-size:15px; font-weight:700}
 .dh .d2{font-size:12px; color:var(--fg3)}
@@ -260,6 +286,17 @@ td:first-child{color:var(--fg); font-weight:600; white-space:nowrap}
   <button data-v="vRules"><span class="ic">✓</span>规范</button>
   <button data-v="vSOS"><span class="ic">!</span>应急</button>
 </nav>
+
+<div class="sheet" id="sheet">
+  <div class="sheet-mask" data-close="1"></div>
+  <div class="sheet-box">
+    <div class="sheet-top">
+      <div class="sheet-t" id="sheetTitle">—</div>
+      <button class="sheet-x" data-close="1">✕</button>
+    </div>
+    <div id="sheetBody"></div>
+  </div>
+</div>
 
 <script>
 /* ================================================================
@@ -598,6 +635,66 @@ function renderHead(){
     week.title + ' · ' + md(date) + ' ' + WEEKDAYS[date.getDay()] + (day && day.tag ? ' · ' + day.tag : '');
 }
 
+/* ---------- 共用：时间轴 / 提醒 ---------- */
+
+/* blocks → 时间轴 HTML。withNow=true 时标记「已过 / 进行中」 */
+function timelineHTML(blocks, key, withNow){
+  const mins = logicalNow().mins;
+  const bs = blocks.map(b => ({ ...b, sm: toMin(b.s), em: toMin(b.e) }));
+  const live = withNow ? bs.find(b => mins >= b.sm && mins < b.em) : null;
+  return bs.map((b,i) => {
+    const past = withNow && mins >= b.em;
+    const isLive = live === b;
+    const dk = 'ck:'+key+':'+i;
+    const done = localStorage.getItem(dk) === '1';
+    const cls = ['row', b.k, past?'past':'', isLive?'live':'', done?'done':''].filter(Boolean).join(' ');
+    return '<div class="'+cls+'" data-ck="'+dk+'">'
+      + '<div class="tm">'+fmt(b.sm)+'<span class="e">'+fmt(b.em)+'</span></div>'
+      + '<div class="bd"><div class="tt">'+b.t+(isLive?'<span class="pillnow">现在</span>':'')+'</div>'
+      + '<div class="tag">'+KIND[b.k]+'</div></div></div>';
+  }).join('');
+}
+
+/* 当天的提醒（含考试） */
+function notesHTML(day){
+  const list = (day.notes || []).slice();
+  const ex = SCHOOL_EVENTS.filter(e => e.date === day.date);
+  if (ex.length){
+    list.unshift('⚠️ 当天有考试：' + ex.map(e =>
+      e.name + '（' + e.kind + '）' + (e.place ? ' @ ' + e.place : '')).join('、'));
+  }
+  if (!list.length) return '';
+  return '<div class="notes"><div class="nt">提醒</div><ul>'
+    + list.map(n=>'<li>'+n+'</li>').join('') + '</ul></div>';
+}
+
+/* 自主学习净时长（只算 study —— 上课、家教是 school，不计入） */
+function studyH(blocks){
+  const mins = blocks.filter(b => b.k==='study')
+    .reduce((s,b) => s + toMin(b.e) - toMin(b.s), 0);
+  return (mins/60).toFixed(1);
+}
+
+/* ---------- 当天详情弹层 ---------- */
+function openDay(dateStr){
+  const day = week.days.find(d => d.date === dateStr);
+  if (!day) return;
+  const d = parseD(dateStr);
+  const isToday = dateStr === todayKey;
+  document.getElementById('sheetTitle').innerHTML =
+    day.label + ' · ' + md(d) + (day.tag ? ' · ' + day.tag : '')
+    + '<span class="s2">' + WEEKDAYS[d.getDay()] + ' ｜ 学习 ' + studyH(day.blocks) + ' h ｜ '
+    + day.blocks.length + ' 个时段</span>';
+  document.getElementById('sheetBody').innerHTML =
+    '<div class="tl">' + timelineHTML(day.blocks, dateStr, isToday) + '</div>' + notesHTML(day);
+  document.getElementById('sheet').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+function closeSheet(){
+  document.getElementById('sheet').classList.remove('on');
+  document.body.style.overflow = '';
+}
+
 /* ---------- 今日 ---------- */
 function renderToday(){
   const { date, mins } = logicalNow();
@@ -634,30 +731,7 @@ function renderToday(){
       + '</div>';
   }
 
-  const rows = blocks.map((b,i) => {
-    const past = mins >= b.em, isLive = live === b;
-    const dk = 'ck:'+key+':'+i;
-    const done = localStorage.getItem(dk) === '1';
-    const cls = ['row', b.k, past?'past':'', isLive?'live':'', done?'done':''].filter(Boolean).join(' ');
-    return '<div class="'+cls+'" data-ck="'+dk+'">'
-      + '<div class="tm">'+fmt(b.sm)+'<span class="e">'+fmt(b.em)+'</span></div>'
-      + '<div class="bd"><div class="tt">'+b.t+(isLive?'<span class="pillnow">现在</span>':'')+'</div>'
-      + '<div class="tag">'+KIND[b.k]+'</div></div></div>';
-  }).join('');
-
-  const noteList = (day.notes || []).slice();
-  const exToday = SCHOOL_EVENTS.filter(e => e.date === key);
-  if (exToday.length){
-    noteList.unshift('⚠️ 今天有考试：' + exToday.map(e =>
-      e.name + '（' + e.kind + '）' + (e.place ? ' @ ' + e.place : '')).join('、'));
-  }
-  let notes = '';
-  if (noteList.length){
-    notes = '<div class="notes"><div class="nt">今日提醒</div><ul>'
-      + noteList.map(n=>'<li>'+n+'</li>').join('') + '</ul></div>';
-  }
-
-  el.innerHTML = head + '<div class="tl">'+rows+'</div>' + notes;
+  el.innerHTML = head + '<div class="tl">'+timelineHTML(day.blocks, key, true)+'</div>' + notesHTML(day);
 }
 
 /* ---------- 本周 ---------- */
@@ -675,10 +749,12 @@ function renderWeek(){
       const wd = ['周日','周一','周二','周三','周四','周五','周六'][parseD(d.date).getDay()];
       const exD = SCHOOL_EVENTS.filter(e => e.date === d.date);
       const exTag = exD.length ? '<span class="exbadge">考试 ' + exD.map(e=>e.name).join('、') + '</span>' : '';
-      return '<div class="dcard '+(isToday?'today':'')+'">'
+      return '<div class="dcard '+(isToday?'today':'')+'" data-day="'+d.date+'">'
         + '<div class="dh"><div class="d1">'+d.label+exTag+(d.tag?' <span style="font-size:11.5px;color:var(--fg3);font-weight:400">'+d.tag+'</span>':'')+'</div>'
         + '<div class="d2">'+(parseD(d.date).getMonth()+1)+'/'+parseD(d.date).getDate()+'</div></div>'
-        + '<ul class="dl">'+lis+'</ul></div>';
+        + '<ul class="dl">'+lis+'</ul>'
+        + '<div class="more"><span>学习 '+studyH(d.blocks)+' h ｜ '+d.blocks.length+' 个时段</span><b>查看完整安排 ›</b></div>'
+        + '</div>';
     }).join('');
 }
 
@@ -778,6 +854,10 @@ document.querySelectorAll('nav button').forEach(btn => {
 });
 
 document.addEventListener('click', e => {
+  // 关闭弹层（点遮罩 / 点 ✕）
+  if (e.target.closest('[data-close]')){ closeSheet(); return; }
+
+  // 打勾（今日页 与 弹层内 通用）
   const row = e.target.closest('[data-ck]');
   if (row){
     const k = row.dataset.ck;
@@ -786,6 +866,11 @@ document.addEventListener('click', e => {
     row.classList.toggle('done', !on);
     return;
   }
+
+  // 本周：点某一天 → 打开当天完整安排
+  const dc = e.target.closest('[data-day]');
+  if (dc){ openDay(dc.dataset.day); return; }
+
   const li = e.target.closest('#todoList li');
   if (li){
     const k = li.dataset.k;
@@ -794,6 +879,8 @@ document.addEventListener('click', e => {
     li.classList.toggle('ok', !on);
   }
 });
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 
 /* 恢复勾选状态 */
 function restore(){
