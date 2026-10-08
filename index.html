@@ -17,6 +17,9 @@
   --glass:rgba(15,17,21,.9);
   --tint-now:rgba(255,214,10,.12);
   --tint-now-line:rgba(255,214,10,.4);
+  --exam:#ff7a7a;
+  --tint-exam:rgba(255,92,92,.14);
+  --tint-exam-line:rgba(255,92,92,.42);
 }
 @media (prefers-color-scheme: light){
   :root{
@@ -28,6 +31,9 @@
     --glass:rgba(245,246,248,.9);
     --tint-now:rgba(199,154,0,.12);
     --tint-now-line:rgba(199,154,0,.4);
+    --exam:#c62828;
+    --tint-exam:rgba(198,40,40,.10);
+    --tint-exam-line:rgba(198,40,40,.34);
   }
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -59,6 +65,31 @@ header{
   background:var(--tint-now); color:var(--now); border:1px solid var(--tint-now-line);
 }
 .hd-stage.off{display:none}
+.hd-exam{
+  display:inline-block; font-size:11px; font-weight:700; letter-spacing:.3px;
+  padding:2.5px 9px; border-radius:20px; margin-top:7px; margin-left:6px;
+  background:var(--tint-exam); color:var(--exam); border:1px solid var(--tint-exam-line);
+}
+.hd-exam.off{display:none}
+
+/* ---------- 学校 ---------- */
+.exam{display:flex; gap:11px; padding:10px 0; border-bottom:1px solid var(--line)}
+.exam:last-child{border-bottom:0}
+.exam .ed{flex:0 0 54px; font-size:12.5px; font-weight:700; color:var(--fg2); font-variant-numeric:tabular-nums; padding-top:1px}
+.exam .ed .dd{display:block; font-size:10.5px; color:var(--fg3); font-weight:400; margin-top:2px}
+.exam .eb{flex:1; min-width:0}
+.exam .en{font-size:14px; color:var(--fg); font-weight:600}
+.exam .et{font-size:11.5px; color:var(--fg3); margin-top:2px}
+.exam .dl2{font-size:11px; font-weight:700; color:var(--fg3); margin-top:3px}
+.exam.past{opacity:.38}
+.exam.past .en{text-decoration:line-through}
+.exam.soon{background:var(--tint-exam); border-radius:10px; padding-left:10px; padding-right:10px; border-bottom-color:transparent; box-shadow:inset 0 0 0 1px var(--tint-exam-line)}
+.exam.soon .en,.exam.soon .dl2{color:var(--exam)}
+.exbadge{
+  display:inline-block; font-size:10px; font-weight:700; color:var(--exam);
+  background:var(--tint-exam); border:1px solid var(--tint-exam-line);
+  border-radius:4px; padding:0 5px; margin-left:6px; vertical-align:1.5px;
+}
 nav{
   position:fixed; left:0; right:0; bottom:0; z-index:30;
   display:flex;
@@ -210,12 +241,14 @@ td:first-child{color:var(--fg); font-weight:600; white-space:nowrap}
     <div class="hd-clock" id="hdClock">--:--</div>
   </div>
   <div class="hd-stage" id="hdStage">—</div>
+  <div class="hd-exam off" id="hdExam">—</div>
   <div class="hd-sub" id="hdSub">—</div>
 </header>
 
 <main>
   <section id="vToday" class="on"></section>
   <section id="vWeek"></section>
+  <section id="vSchool"></section>
   <section id="vRules"></section>
   <section id="vSOS"></section>
 </main>
@@ -223,6 +256,7 @@ td:first-child{color:var(--fg); font-weight:600; white-space:nowrap}
 <nav>
   <button class="on" data-v="vToday"><span class="ic">◉</span>今日</button>
   <button data-v="vWeek"><span class="ic">▤</span>本周</button>
+  <button data-v="vSchool"><span class="ic">◆</span>学校</button>
   <button data-v="vRules"><span class="ic">✓</span>规范</button>
   <button data-v="vSOS"><span class="ic">!</span>应急</button>
 </nav>
@@ -247,6 +281,19 @@ const STAGES = [
   { n:'E', name:'西综三轮',     when:'大四下',   from:'2028-02-01', to:'2028-07-31', desc:'专攻错题与薄弱章节' },
   { n:'F', name:'强化期',       when:'大五上',   from:'2028-08-01', to:'2028-10-31', desc:'政治启动（徐涛 + 1000 题），西综真题第 3 遍' },
   { n:'G', name:'冲刺期',       when:'实习中',   from:'2028-11-01', to:'2028-12-31', desc:'肖四背诵 + 西综错题本 + 英语作文' },
+];
+
+/* ★ 本学期学校考试（来源：教务系统导出课表 download.xls，2026-2027-1）
+   注意：这是课表里的随堂考/实操考，期末笔试统考安排要等学校另行公布 */
+const SCHOOL_EVENTS = [
+  { date:'2026-10-14', name:'基础护理学技术', kind:'实操', place:'基础护理实验室(4)' },
+  { date:'2026-10-26', name:'医学统计学',     kind:'理论', place:'705 教室' },
+  { date:'2026-12-08', name:'药理学',         kind:'理论', place:'' },
+  { date:'2026-12-14', name:'综合高级英语',   kind:'理论', place:'' },
+  { date:'2026-12-21', name:'机能实验学二',   kind:'实操', place:'机能学实验室(3)' },
+  { date:'2026-12-22', name:'临床诊断学',     kind:'实操', place:'诊断学实验室' },
+  { date:'2026-12-24', name:'手术学基础',     kind:'实操', place:'珠江医院临床技能中心' },
+  { date:'2026-12-28', name:'中医学基础',     kind:'理论', place:'' },
 ];
 
 const TPL = {
@@ -435,6 +482,17 @@ function currentStage(){
   return STAGES.find(s => t >= parseD(s.from) && t <= parseD(s.to)) || null;
 }
 
+/* 下一场学校考试（已过期的不算） */
+function nextExam(){
+  const t = logicalNow().date;
+  return SCHOOL_EVENTS
+    .map(e => ({ ...e, d: parseD(e.date) }))
+    .filter(e => e.d >= t)
+    .sort((a, b) => a.d - b.d)[0] || null;
+}
+const WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
+const md = d => (d.getMonth()+1)+'月'+d.getDate()+'日';
+
 /* ---------- 顶部 ---------- */
 function renderHead(){
   const { date, mins } = logicalNow();
@@ -450,10 +508,19 @@ function renderHead(){
   if (st){ el.className = 'hd-stage'; el.textContent = '阶段 ' + st.n + ' · ' + st.name + '（' + st.when + '）'; }
   else { el.className = 'hd-stage off'; }
 
-  const dstr = (date.getMonth()+1)+'月'+date.getDate()+'日';
-  const wd = ['周日','周一','周二','周三','周四','周五','周六'][date.getDay()];
+  // 考试倒计时：只在考前 30 天内出现
+  const nx = nextExam();
+  const xe = document.getElementById('hdExam');
+  if (nx){
+    const dl = Math.round((nx.d - date) / 86400000);
+    if (dl <= 30){
+      xe.className = 'hd-exam';
+      xe.textContent = dl === 0 ? '今天考「' + nx.name + '」' : '距「' + nx.name + '」' + dl + ' 天';
+    } else { xe.className = 'hd-exam off'; }
+  } else { xe.className = 'hd-exam off'; }
+
   document.getElementById('hdSub').textContent =
-    week.title + ' · ' + dstr + ' ' + wd + (day && day.tag ? ' · ' + day.tag : '');
+    week.title + ' · ' + md(date) + ' ' + WEEKDAYS[date.getDay()] + (day && day.tag ? ' · ' + day.tag : '');
 }
 
 /* ---------- 今日 ---------- */
@@ -503,10 +570,16 @@ function renderToday(){
       + '<div class="tag">'+KIND[b.k]+'</div></div></div>';
   }).join('');
 
+  const noteList = (day.notes || []).slice();
+  const exToday = SCHOOL_EVENTS.filter(e => e.date === key);
+  if (exToday.length){
+    noteList.unshift('⚠️ 今天有考试：' + exToday.map(e =>
+      e.name + '（' + e.kind + '）' + (e.place ? ' @ ' + e.place : '')).join('、'));
+  }
   let notes = '';
-  if (day.notes && day.notes.length){
+  if (noteList.length){
     notes = '<div class="notes"><div class="nt">今日提醒</div><ul>'
-      + day.notes.map(n=>'<li>'+n+'</li>').join('') + '</ul></div>';
+      + noteList.map(n=>'<li>'+n+'</li>').join('') + '</ul></div>';
   }
 
   el.innerHTML = head + '<div class="tl">'+rows+'</div>' + notes;
@@ -525,11 +598,49 @@ function renderWeek(){
           + '<span class="n"><span class="dot '+b.k+'"></span> '+b.t+'</span></li>';
       }).join('');
       const wd = ['周日','周一','周二','周三','周四','周五','周六'][parseD(d.date).getDay()];
+      const exD = SCHOOL_EVENTS.filter(e => e.date === d.date);
+      const exTag = exD.length ? '<span class="exbadge">考试 ' + exD.map(e=>e.name).join('、') + '</span>' : '';
       return '<div class="dcard '+(isToday?'today':'')+'">'
-        + '<div class="dh"><div class="d1">'+d.label+(d.tag?' <span style="font-size:11.5px;color:var(--fg3);font-weight:400">'+d.tag+'</span>':'')+'</div>'
+        + '<div class="dh"><div class="d1">'+d.label+exTag+(d.tag?' <span style="font-size:11.5px;color:var(--fg3);font-weight:400">'+d.tag+'</span>':'')+'</div>'
         + '<div class="d2">'+(parseD(d.date).getMonth()+1)+'/'+parseD(d.date).getDate()+'</div></div>'
         + '<ul class="dl">'+lis+'</ul></div>';
     }).join('');
+}
+
+/* ---------- 学校 ---------- */
+function renderSchool(){
+  const el = document.getElementById('vSchool');
+  const t = logicalNow().date;
+
+  const rows = SCHOOL_EVENTS.map(e => {
+    const d = parseD(e.date);
+    const dl = Math.round((d - t) / 86400000);
+    const cls = 'exam' + (dl < 0 ? ' past' : '') + (dl >= 0 && dl <= 14 ? ' soon' : '');
+    const left = dl < 0 ? '已结束' : (dl === 0 ? '◆ 就是今天' : '还有 ' + dl + ' 天');
+    return '<div class="'+cls+'">'
+      + '<div class="ed">'+md(d)+'<span class="dd">'+WEEKDAYS[d.getDay()]+'</span></div>'
+      + '<div class="eb"><div class="en">'+e.name+'</div>'
+      + '<div class="et">'+e.kind+(e.place ? ' · '+e.place : '')+'</div>'
+      + '<div class="dl2">'+left+'</div></div></div>';
+  }).join('');
+
+  el.innerHTML =
+      '<h2>本学期考试 · 2026-2027-1</h2><div class="box">'+rows
+    + '<div class="muted">来源：教务系统导出课表。这是课表内的随堂考 / 实操考，'
+    + '<b>期末笔试统考安排要等学校另行公布</b>（通常 12 月中下旬）。</div></div>'
+
+    + '<h2>节奏提醒</h2><div class="box warn">'
+    +   '<div style="font-size:13.5px;color:var(--fg);font-weight:700">期末冲刺期：12 月第一周起</div>'
+    +   '<div class="muted">12/14–12/28 连续 5 场，这是你的高压区。'
+    +   '届时切保底模式：<b>砍西综，保单词 + 诊断学</b>。</div></div>'
+
+    + '<h2>这学期的课</h2><div class="box">'
+    +   '<div style="font-size:13.5px;color:var(--fg2);line-height:2">'
+    +   '临床诊断学 · 实验诊断学 · 药理学 · 手术学基础 · 机能实验学二<br>'
+    +   '医学统计学 · 中医学基础 · 综合高级英语 · 形势与政策 · 基础护理学技术</div>'
+    +   '<div class="muted">学期：第 1–18 周（2026/08/31 – 2027/01/03）</div>'
+    +   '<div class="muted">其中 <b>临床诊断学</b> 与考研 306「内科学（含诊断学）」直接重合，'
+    +   '课堂就是一轮复习，实操课必去。</div></div>';
 }
 
 /* ---------- 规范 ---------- */
@@ -630,7 +741,7 @@ function tick(){
   }
   renderHead(); renderToday();
 }
-function renderAll(){ renderHead(); renderToday(); renderWeek(); renderRules(); renderSOS(); restore(); }
+function renderAll(){ renderHead(); renderToday(); renderWeek(); renderSchool(); renderRules(); renderSOS(); restore(); }
 renderAll();
 setInterval(tick, 30000);
 </script>
