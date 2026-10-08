@@ -14,9 +14,10 @@
 
 | 文件 | 作用 | 改了它之后 |
 |---|---|---|
-| **`index.html`** | **唯一数据源**。日程 / 阶段 / 考试全在里面 | 必须跑 `python3 gen_ics.py` |
+| **`index.html`** | **唯一数据源**。日程 / 阶段 / 考试全在里面 | Action 会自动重算 .ics |
 | `schedule.ics` | 日历订阅文件（**自动生成，不要手改**） | — |
-| `gen_ics.py` | 从 index.html 提取数据生成 .ics | — |
+| `gen_ics.py` | 从 index.html 提取数据生成 .ics（osascript / node 双路径） | — |
+| `.github/workflows/gen-ics.yml` | Action：index.html 变更时自动重生成 .ics | — |
 | `PROJECT.md` | 本文件，项目档案 | — |
 | `README.md` | 部署方式、数据格式、SSH 网络配置 | — |
 | `backup.sh` | 把对话记录 + 我的记忆备份到 `_private/` | — |
@@ -225,7 +226,7 @@
 
 ### 执行
 
-- 用户说"更新下周计划" → 改 `index.html` 顶部 `WEEKS` 数组（**在最前面加新周对象，旧周保留**）→ `python3 gen_ics.py` → commit → push
+- 用户说"更新下周计划" → 改 `index.html` 顶部 `WEEKS` 数组（**在最前面加新周对象，旧周保留**）→ commit → push（`.ics` 由 Action 自动重算）
 - **不要重新论证已经定下的决策**（老师、作息、策略），直接执行
 - **不要主动提议加新功能**，除非用户提出
 - 涉及时间安排的方案，**先算时间成本**再给建议
