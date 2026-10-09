@@ -311,14 +311,28 @@ const EXAM_DATE = '2028-12-23';
 
 /* ★ 全程路线图。页面自动识别今天落在哪个阶段并高亮，不用手动切 */
 const STAGES = [
-  { n:'A', name:'打地基',       when:'大三上',   from:'2026-10-01', to:'2027-01-31', desc:'课内扎实 + 英语起步 + 生理推进' },
-  { n:'B', name:'西综一轮前半', when:'大三下',   from:'2027-02-01', to:'2027-06-30', desc:'生理 → 生化 → 病理，每章配真题' },
+  { n:'A', name:'打地基',       when:'大三上',   from:'2026-10-01', to:'2027-01-31', desc:'课内扎实 + 英语起步 + 生理推进 → 1 月中旬三段考（≈西综一轮预演）' },
+  { n:'B', name:'西综一轮前半', when:'大三下',   from:'2027-02-01', to:'2027-06-30', desc:'生理 → 生化 → 病理，每章配真题（三段考已过一遍，这里是加固）' },
   { n:'C', name:'黄金期',       when:'大三暑假', from:'2027-07-01', to:'2027-08-31', desc:'内科 → 外科，一轮收尾。唯一整块时间' },
   { n:'D', name:'西综二轮',     when:'大四上',   from:'2027-09-01', to:'2028-01-31', desc:'近 15 年真题成套刷，建错题本' },
   { n:'E', name:'西综三轮',     when:'大四下',   from:'2028-02-01', to:'2028-07-31', desc:'专攻错题与薄弱章节' },
   { n:'F', name:'强化期',       when:'大五上',   from:'2028-08-01', to:'2028-10-31', desc:'政治启动（徐涛 + 1000 题），西综真题第 3 遍' },
   { n:'G', name:'冲刺期',       when:'实习中',   from:'2028-11-01', to:'2028-12-31', desc:'肖四背诵 + 西综错题本 + 英语作文' },
 ];
+
+/* ★ 三段考（临床医学专业强制参加）
+   官方规则：机考，分两部分 × 每部分 200 题，4 小时；满分 100，60 分以下补考；
+             出题依据国家执业医师考试大纲。
+   时间规律：大三上考「综合考试一」（1 月中旬），大四上考「综合考试二」。
+   ⚠️ 下方日期按往年（1/12–1/16）估算，官方通知一般 12 月下旬发布，届时更正。 */
+const THREE_STAGE = {
+  date: '2027-01-11',
+  end:  '2027-01-15',
+  name: '三段考 · 综合考试一',
+  courses: ['病理学','生理学','生物化学','医学免疫学','药理学','医学微生物学','诊断学'],
+  in306:   ['病理学','生理学','生物化学','诊断学'],   // 与 306 重合，等于西综一轮预演
+  extra:   ['医学免疫学','药理学','医学微生物学'],     // 306 不考，纯额外负担
+};
 
 /* ★ 本学期学校考试（来源：教务系统导出课表 download.xls，2026-2027-1）
    注意：这是课表里的随堂考/实操考，期末笔试统考安排要等学校另行公布 */
@@ -331,6 +345,7 @@ const SCHOOL_EVENTS = [
   { date:'2026-12-22', name:'临床诊断学',     kind:'实操', place:'诊断学实验室' },
   { date:'2026-12-24', name:'手术学基础',     kind:'实操', place:'珠江医院临床技能中心' },
   { date:'2026-12-28', name:'中医学基础',     kind:'理论', place:'' },
+  { date:'2027-01-11', name:'三段考 · 综合考试一', kind:'机考', place:'教学馆机房（待官方公布）' },
 ];
 
 const TPL = {
@@ -775,15 +790,49 @@ function renderSchool(){
       + '<div class="dl2">'+left+'</div></div></div>';
   }).join('');
 
+  const ts = THREE_STAGE;
+  const dts = parseD(ts.date);
+  const tsLeft = Math.round((dts - t) / 86400000);
+  const chip = (arr, cls) => arr.map(c =>
+    '<span style="display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:20px;margin:3px 4px 0 0;'
+    + 'background:'+(cls==='a'?'var(--tint-now)':'var(--card2)')+';'
+    + 'color:'+(cls==='a'?'var(--now)':'var(--fg3)')+';'
+    + 'border:1px solid '+(cls==='a'?'var(--tint-now-line)':'var(--line)')+'">'+c+'</span>').join('');
+
   el.innerHTML =
-      '<h2>本学期考试 · 2026-2027-1</h2><div class="box">'+rows
+      '<h2>三段考 · 综合考试一 ⚠️</h2><div class="box warn">'
+    +   '<div style="font-size:14px;color:var(--fg);font-weight:700">'
+    +     '约 '+ts.date.slice(5).replace('-','/')+' – '+ts.end.slice(5).replace('-','/')
+    +     '　<span style="color:var(--exam)">'+(tsLeft>0?'还有 '+tsLeft+' 天':'已过')+'</span></div>'
+    +   '<div class="muted" style="margin-top:6px">'
+    +     '临床医学专业<b>强制参加</b>。机考，分两部分 × 每部分 200 题，4 小时（18:00–22:00）；'
+    +     '满分 100，<b>60 分以下要补考</b>；出题依据<b>国家执业医师考试大纲</b>。</div>'
+    +   '<div class="muted" style="margin-top:4px;color:var(--fg3);font-size:11.5px">'
+    +     '⚠️ 日期按往年估算。官方通知一般 12 月下旬发布，届时更正。</div>'
+    +   '<div style="margin-top:11px;font-size:12px;color:var(--fg3)">'
+    +     '与 306 重合（<b style="color:var(--now)">≈ 西综一轮预演</b>）</div>'
+    +   '<div>'+chip(ts.in306,'a')+'</div>'
+    +   '<div style="margin-top:9px;font-size:12px;color:var(--fg3)">306 不考（纯额外负担）</div>'
+    +   '<div>'+chip(ts.extra)+'</div>'
+    +   '<div class="muted" style="margin-top:10px;border-top:1px solid var(--line);padding-top:9px">'
+    +     '<b>7 门里 4 门是 306 核心</b>（生理 14% + 生化 12% + 病理 12% + 诊断）。'
+    +     '这场考试会逼你在大三上结束时就把西综过一遍 —— 等于免费的一轮。</div></div>'
+
+    + '<h2>本学期考试 · 2026-2027-1</h2><div class="box">'+rows
     + '<div class="muted">来源：教务系统导出课表。这是课表内的随堂考 / 实操考，'
     + '<b>期末笔试统考安排要等学校另行公布</b>（通常 12 月中下旬）。</div></div>'
 
-    + '<h2>节奏提醒</h2><div class="box warn">'
-    +   '<div style="font-size:13.5px;color:var(--fg);font-weight:700">期末冲刺期：12 月第一周起</div>'
-    +   '<div class="muted">12/14–12/28 连续 5 场，这是你的高压区。'
-    +   '届时切保底模式：<b>砍西综，保单词 + 诊断学</b>。</div></div>'
+    + '<h2>12 月 – 1 月：你的高压区</h2><div class="box warn">'
+    +   '<div style="font-size:13.5px;color:var(--fg);font-weight:700">连续三波，中间没有喘息</div>'
+    +   '<table style="margin-top:8px"><tbody>'
+    +   '<tr><td>12/14 – 12/28</td><td>期末考试 5 场（药理、英语、机能、诊断、手术学）</td></tr>'
+    +   '<tr><td>12/29 – 1/10</td><td><b>三段考冲刺</b>（7 门，约 2 周）</td></tr>'
+    +   '<tr><td>1 月中旬</td><td>三段考 · 综合考试一</td></tr>'
+    +   '</tbody></table>'
+    +   '<div class="muted">整个 12 月和 1 月上半月，<b>考研新内容基本停摆</b>。'
+    +   '这不算失败 —— 三段考的 4 门就是西综一轮的一部分，不算白学。</div>'
+    +   '<div class="muted" style="margin-top:6px"><b>11 月底之前，生理一轮必须过完。</b>'
+    +   '否则 12 月会全线崩盘。</div></div>'
 
     + '<h2>这学期的课</h2><div class="box">'
     +   '<div style="font-size:13.5px;color:var(--fg2);line-height:2">'
