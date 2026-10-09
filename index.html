@@ -156,6 +156,28 @@ section.on{display:block; animation:fade .18s ease-out}
 .nexthint{font-size:12.5px; color:var(--fg2); margin-top:6px}
 .nexthint b{color:var(--fg); font-weight:600}
 
+/* ---------- 进度 ---------- */
+.tprog{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 16px; margin-bottom:14px}
+.tprog .th{display:flex; align-items:baseline; justify-content:space-between; gap:10px}
+.tprog .tl2{font-size:12px; color:var(--fg3); font-weight:700; letter-spacing:.5px}
+.tprog .tv{font-size:13px; color:var(--fg2); font-variant-numeric:tabular-nums}
+.tprog .tv b{color:var(--body); font-size:16px}
+.tprog .pb{height:7px; background:var(--card2); border-radius:4px; overflow:hidden; margin-top:9px}
+.tprog .pb i{display:block; height:100%; background:var(--body); border-radius:4px; transition:width .35s}
+
+.pc{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:11px}
+.pc-h{display:flex; align-items:baseline; justify-content:space-between; gap:10px}
+.pc-n{font-size:15.5px; font-weight:700}
+.pc-s{display:block; font-size:11.5px; color:var(--fg3); font-weight:400; margin-top:2px}
+.pc-p{font-size:18px; font-weight:700; color:var(--study); font-variant-numeric:tabular-nums; letter-spacing:-.5px}
+.pb2{height:9px; background:var(--card2); border-radius:5px; overflow:hidden; margin:10px 0 8px}
+.pb2 i{display:block; height:100%; background:linear-gradient(90deg, var(--study), var(--body)); border-radius:5px; transition:width .4s}
+.pc-f{display:flex; justify-content:space-between; gap:10px; font-size:12px; color:var(--fg3)}
+.pc-f b{color:var(--fg2); font-weight:600}
+.pc.done .pc-p{color:var(--body)}
+.pc.done .pb2 i{background:var(--body)}
+.row .crs{font-size:10.5px; color:var(--study); font-weight:700; margin-top:2px}
+
 .notes{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 15px; margin-top:14px}
 .notes .nt{font-size:11.5px; color:var(--fg3); font-weight:700; letter-spacing:.6px; margin-bottom:7px}
 .notes ul{margin:0; padding-left:17px; color:var(--fg2); font-size:13px}
@@ -274,6 +296,7 @@ td:first-child{color:var(--fg); font-weight:600; white-space:nowrap}
 <main>
   <section id="vToday" class="on"></section>
   <section id="vWeek"></section>
+  <section id="vProgress"></section>
   <section id="vSchool"></section>
   <section id="vRules"></section>
   <section id="vSOS"></section>
@@ -282,6 +305,7 @@ td:first-child{color:var(--fg); font-weight:600; white-space:nowrap}
 <nav>
   <button class="on" data-v="vToday"><span class="ic">◉</span>今日</button>
   <button data-v="vWeek"><span class="ic">▤</span>本周</button>
+  <button data-v="vProgress"><span class="ic">▰</span>进度</button>
   <button data-v="vSchool"><span class="ic">◆</span>学校</button>
   <button data-v="vRules"><span class="ic">✓</span>规范</button>
   <button data-v="vSOS"><span class="ic">!</span>应急</button>
@@ -304,7 +328,22 @@ td:first-child{color:var(--fg); font-weight:600; white-space:nowrap}
    在 WEEKS 数组最前面加一个新周对象即可，旧周保留（可回看）
    ================================================================ */
 
-const B = (s, e, t, k) => ({ s, e, t, k });
+/* B(开始, 结束, 内容, 类型, 课程key, 本次推进几讲)
+   带「课程key」的时段，打勾后会推进该课程的进度条 */
+const B = (s, e, t, k, c, n) => ({ s, e, t, k, c: c || null, n: n || 0 });
+
+/* ★ 课程进度追踪
+   total = 这门课一共多少讲。⚠️ 下面的数字是占位，等你按网盘里的课程列表给我实际数字。
+   改完之后：进度条、剩余讲数、预计完成日期都会自动重算。 */
+const COURSES = {
+  zhenduan: { name:'诊断学',      sub:'徐琦 · 网课',   total: 48 },
+  shengli:  { name:'生理学',      sub:'侯英健 · 网课', total: 56 },
+  yingyu:   { name:'英语真题精读', sub:'唐迟 · 阅读',   total: 30 },
+};
+/* 每周几要上课（用于推算未来的推进速度）
+   Monday=1 … Sunday=0，对应 TPL 里的模板名 */
+const DOW_TPL = { 0:'sunday', 1:'workday', 2:'workday', 3:'wednesday',
+                  4:'workday', 5:'workday', 6:'saturday' };
 
 /* ★ 初试日期。确认年份后，改这一行就行（倒计时会自动重算） */
 const EXAM_DATE = '2028-12-23';
@@ -353,13 +392,13 @@ const TPL = {
     B('07:30','08:00','起床、早餐','life'),
     B('08:00','08:40','墨墨背单词（50 新词 + 复习）','study'),
     B('08:40','09:00','机动 / 通勤','rest'),
-    B('09:00','09:50','生理① 网课 + 笔记','study'),
+    B('09:00','09:50','生理① 网课 + 笔记','study','shengli',1),
     B('09:50','10:00','休息 10min（站起来走动，别刷手机）','rest'),
-    B('10:00','10:50','生理② 网课 + 笔记','study'),
+    B('10:00','10:50','生理② 网课 + 笔记','study','shengli',1),
     B('10:50','11:00','休息 10min','rest'),
     B('11:00','11:30','生理③ 当天章节真题','study'),
     B('11:30','13:00','午饭 + 午休 45min（必睡）','life'),
-    B('13:00','13:50','诊断① 学校内容跟进','study'),
+    B('13:00','13:50','诊断① 徐琦网课','study','zhenduan',1),
     B('13:50','14:00','休息 10min','rest'),
     B('14:00','14:50','诊断② 症状学真题','study'),
     B('14:50','15:05','休息 15min','rest'),
@@ -377,13 +416,13 @@ const TPL = {
   wednesday: [
     B('07:30','08:40','起床、早餐、单词','study'),
     B('08:40','09:00','机动','rest'),
-    B('09:00','09:50','生理① 网课 + 笔记','study'),
+    B('09:00','09:50','生理① 网课 + 笔记','study','shengli',1),
     B('09:50','10:00','休息 10min','rest'),
-    B('10:00','10:50','生理② 网课 + 笔记','study'),
+    B('10:00','10:50','生理② 网课 + 笔记','study','shengli',1),
     B('10:50','11:00','休息 10min','rest'),
     B('11:00','11:30','生理③ 当天章节真题','study'),
     B('11:30','13:00','午饭 + 午休 45min','life'),
-    B('13:00','13:50','诊断① 学校内容跟进','study'),
+    B('13:00','13:50','诊断① 徐琦网课','study','zhenduan',1),
     B('13:50','14:00','休息 10min','rest'),
     B('14:00','14:50','诊断② 症状学真题','study'),
     B('14:50','15:05','休息 15min','rest'),
@@ -392,7 +431,7 @@ const TPL = {
     B('16:05','16:50','英语长难句 5 句','study'),
     B('16:50','17:10','休息','rest'),
     B('17:10','17:40','复盘 + 错题归类','study'),
-    B('17:30','18:30','晚饭 + 准备','life'),
+    B('17:40','18:30','晚饭 + 准备','life'),
     B('18:30','22:30','约会（完全不学习）','love'),
     B('22:30','24:00','回家 / 洗漱 / 自由','rest'),
     B('24:00','24:30','洗漱降速，不碰手机','base'),
@@ -400,17 +439,21 @@ const TPL = {
   saturday: [
     B('07:30','08:00','起床、早餐','life'),
     B('08:00','20:00','家教（全天）· 通勤背单词','school'),
-    B('20:00','22:00','健身 + 洗澡（可选）','body'),
-    B('22:00','24:00','自由','rest'),
+    B('20:00','21:00','英语真题精读 1 篇','study','yingyu',1),
+    B('21:00','22:30','健身 + 洗澡（可选）','body'),
+    B('22:30','24:00','自由','rest'),
     B('24:00','24:30','洗漱降速','base'),
   ],
   sunday: [
     B('09:00','10:00','自然醒（不设闹钟）','rest'),
     B('10:00','13:00','个人时间 / 完全自由','love'),
     B('13:00','13:30','午饭','life'),
-    B('13:30','17:00','学习 3.5h（西综薄弱章节 / 英语真题精读）','study'),
+    B('13:30','15:00','英语真题精读 1 篇','study','yingyu',1),
+    B('15:00','15:15','休息','rest'),
+    B('15:15','17:00','诊断学 徐琦网课 + 症状学真题','study','zhenduan',1),
     B('17:00','19:00','晚饭 + 自由','life'),
     B('19:00','19:45','周复盘 + 排下周计划','study'),
+    B('19:45','20:00','机动','rest'),
     B('20:00','22:00','健身 + 洗澡','body'),
     B('22:00','24:00','自由','rest'),
     B('24:00','24:30','洗漱降速','base'),
@@ -447,19 +490,19 @@ const WEEKS = [
         B('07:30','08:00','起床、早餐','life'),
         B('08:00','09:30','健身 + 洗澡','body'),
         B('09:30','10:00','墨墨背单词（50 新词 + 复习）','study'),
-        B('10:00','10:50','生理① 网课 + 笔记','study'),
+        B('10:00','10:50','生理① 网课 + 笔记','study','shengli',1),
         B('10:50','11:00','休息 10min（站起来走动，别刷手机）','rest'),
-        B('11:00','11:50','生理② 网课 + 笔记','study'),
+        B('11:00','11:50','生理② 网课 + 笔记','study','shengli',1),
         B('11:50','12:00','缓冲','rest'),
         B('12:00','13:00','午饭','life'),
         B('13:00','13:50','午休 50min（必睡）','life'),
-        B('13:50','14:40','诊断① 学校内容跟进','study'),
+        B('13:50','14:40','诊断① 徐琦网课','study','zhenduan',1),
         B('14:40','14:55','休息 15min','rest'),
         B('14:55','15:45','诊断② 症状学真题','study'),
         B('15:45','16:05','休息 20min（加餐 / 走动）','rest'),
         B('16:05','16:50','心电图专项 / 生化默画通路','study'),
         B('16:50','17:05','休息 15min','rest'),
-        B('17:05','17:50','英语长难句 5 句','study'),
+        B('17:05','17:50','英语真题精读 1 篇','study','yingyu',1),
         B('17:50','18:50','晚饭 + 散步','life'),
         B('18:50','19:20','复盘 + 错题归类','study'),
         B('19:20','20:00','机动','rest'),
@@ -474,35 +517,39 @@ const WEEKS = [
       ]
     },
     {
-      date: '2026-10-10', label: '周六', tag: '下午 4 点后有空',
+      date: '2026-10-10', label: '周六', tag: '家教已挪走 · 全天可用',
       blocks: [
         B('08:00','16:00','上课（诊断学相关的课认真听，零成本窗口）','school'),
-        B('16:00','17:00','单词（补当天 + 复习）','study'),
-        B('17:00','18:00','晚饭','life'),
-        B('18:00','20:00','生理 2h：第 1–2 讲 + 对应真题','study'),
-        B('20:00','22:00','健身 ／ 约会（二选一，你定）','body'),
-        B('22:00','24:00','自由','rest'),
-        B('24:00','24:30','洗漱降速','base'),
-      ],
-      notes: ['今天没有家教，是额外赚到的一天']
-    },
-    {
-      date: '2026-10-11', label: '周日', tag: '全天自由',
-      blocks: [
-        B('09:00','10:00','自然醒，不设闹钟（不超 10:00）','rest'),
-        B('10:00','13:00','完全自由 / 约会','love'),
-        B('13:00','13:30','午饭','life'),
-        B('13:30','15:30','诊断学 2h：症状学笔记 + 306 病例题试做','study'),
-        B('15:30','17:00','英语真题精读 1 篇','study'),
-        B('17:00','19:00','晚饭 + 自由','life'),
-        B('19:00','20:00','第 0 周复盘 + 排第 1 周计划','study'),
-        B('20:00','22:00','健身 + 洗澡','body'),
+        B('16:00','16:40','墨墨背单词（补当天 + 复习）','study'),
+        B('16:40','17:40','晚饭 + 散步','life'),
+        B('17:40','18:30','生理① 网课','study','shengli',1),
+        B('18:30','18:40','休息 10min','rest'),
+        B('18:40','19:30','生理② 网课','study','shengli',1),
+        B('19:30','19:50','休息 20min','rest'),
+        B('19:50','20:40','诊断学 徐琦网课','study','zhenduan',1),
+        B('20:40','21:00','休息 20min','rest'),
+        B('21:00','21:50','英语真题精读 1 篇','study','yingyu',1),
+        B('21:50','22:00','休息','rest'),
         B('22:00','24:00','自由','rest'),
         B('24:00','24:30','洗漱降速','base'),
       ],
       notes: [
-        '这是唯一一周下午两件都做。下周起严格「二选一」',
-        '晚上复盘时把「本周待确认」5 件事过一遍（在「规范」页）'
+        '家教挪到周日了 → 今天整个晚上都是你的',
+        '这是第 0 周唯一能真跑一遍学习节奏的一天，拿它试手',
+      ]
+    },
+    {
+      date: '2026-10-11', label: '周日', tag: '家教 + 约会 · 全天外出',
+      blocks: [
+        B('09:00','21:00','家教 + 约会（全天在外）','love'),
+        B('21:00','21:45','第 0 周复盘 + 排第 1 周计划','study'),
+        B('21:45','24:00','回宿舍、洗漱、自由','rest'),
+        B('24:00','24:30','洗漱降速，不碰手机','base'),
+      ],
+      notes: [
+        '今天只有晚上 21:00 之后能学，别给自己加任务',
+        '复盘时把「本周待确认」5 件事过一遍（「规范」页可打勾）',
+        '⚠️ 10/14 有基础护理学技术实操考试，想一下哪天练手法',
       ]
     },
   ]
@@ -663,10 +710,15 @@ function timelineHTML(blocks, key, withNow){
     const dk = 'ck:'+key+':'+i;
     const done = localStorage.getItem(dk) === '1';
     const cls = ['row', b.k, past?'past':'', isLive?'live':'', done?'done':''].filter(Boolean).join(' ');
+    let crs = '';
+    if (b.c && COURSES[b.c]){
+      const c = COURSES[b.c];
+      crs = '<div class="crs">' + c.name + ' · 第 ' + lectureNo(key, i, b.c) + ' 讲 / 共 ' + c.total + '</div>';
+    }
     return '<div class="'+cls+'" data-ck="'+dk+'">'
       + '<div class="tm">'+fmt(b.sm)+'<span class="e">'+fmt(b.em)+'</span></div>'
       + '<div class="bd"><div class="tt">'+b.t+(isLive?'<span class="pillnow">现在</span>':'')+'</div>'
-      + '<div class="tag">'+KIND[b.k]+'</div></div></div>';
+      + '<div class="tag">'+KIND[b.k]+'</div>'+crs+'</div></div>';
   }).join('');
 }
 
@@ -690,10 +742,83 @@ function studyH(blocks){
   return (mins/60).toFixed(1);
 }
 
+/* ---------- 课程进度 ---------- */
+
+/* 取某天的时段：WEEKS 里有就用它，否则按星期推模板（带缓存） */
+const _bfCache = {};
+function blocksFor(dateStr){
+  if (_bfCache[dateStr]) return _bfCache[dateStr];
+  let out = null;
+  for (const w of WEEKS){
+    const d = w.days.find(x => x.date === dateStr);
+    if (d){ out = d.blocks; break; }
+  }
+  if (!out) out = TPL[DOW_TPL[parseD(dateStr).getDay()]] || [];
+  return (_bfCache[dateStr] = out);
+}
+
+/* 该课程已完成多少讲（= 所有已打勾的带课程时段之和） */
+function courseDone(key){
+  let done = 0;
+  WEEKS.forEach(w => w.days.forEach(d => d.blocks.forEach((b,i) => {
+    if (b.c === key && b.n && localStorage.getItem('ck:'+d.date+':'+i) === '1') done += b.n;
+  })));
+  return done;
+}
+
+/* 未来 days 天的日均推进讲数（用模板推算） */
+function dailyRate(key, days){
+  let sum = 0;
+  const t = logicalNow().date;
+  for (let i = 0; i < days; i++){
+    const d = new Date(t.getFullYear(), t.getMonth(), t.getDate() + i);
+    blocksFor(ymd(d)).forEach(b => { if (b.c === key) sum += b.n; });
+  }
+  return sum / days;
+}
+
+/* 进度 + 预计完成日期 */
+function courseStat(key){
+  const c = COURSES[key];
+  const done = Math.min(courseDone(key), c.total);
+  const remain = Math.max(0, c.total - done);
+  const pct = c.total ? Math.round(done / c.total * 100) : 0;
+  if (remain === 0) return { done, remain, pct:100, text:'已完成 ✓', finished:true };
+  const rate = dailyRate(key, 28);
+  if (rate <= 0) return { done, remain, pct, text:'近期无安排' };
+  const days = Math.ceil(remain / rate);
+  const t = logicalNow().date;
+  const eta = new Date(t.getFullYear(), t.getMonth(), t.getDate() + days);
+  return { done, remain, pct, rate, days, eta,
+           text:(eta.getMonth()+1)+'月'+eta.getDate()+'日',
+           etaPast: eta > parseD(EXAM_DATE) };
+}
+
+/* 该时段是这门课的第几讲（从计划起点逐日累加，带缓存） */
+const _lnCache = {};
+function lectureNo(dateStr, idx, key){
+  const ck = dateStr + '|' + idx + '|' + key;
+  if (_lnCache[ck] != null) return _lnCache[ck];
+
+  let n = 0;
+  const target = parseD(dateStr);
+  const d = parseD('2026-10-09');          // 计划起点
+  let guard = 0;
+  while (d < target && guard++ < 1200){
+    blocksFor(ymd(d)).forEach(b => { if (b.c === key) n += b.n; });
+    d.setDate(d.getDate() + 1);
+  }
+  const bl = blocksFor(dateStr);
+  for (let i = 0; i < idx; i++){ if (bl[i] && bl[i].c === key) n += bl[i].n; }
+  return (_lnCache[ck] = n + 1);
+}
+
 /* ---------- 当天详情弹层 ---------- */
+let sheetDate = null;
 function openDay(dateStr){
   const day = week.days.find(d => d.date === dateStr);
   if (!day) return;
+  sheetDate = dateStr;
   const d = parseD(dateStr);
   const isToday = dateStr === todayKey;
   document.getElementById('sheetTitle').innerHTML =
@@ -708,6 +833,7 @@ function openDay(dateStr){
 function closeSheet(){
   document.getElementById('sheet').classList.remove('on');
   document.body.style.overflow = '';
+  sheetDate = null;
 }
 
 /* ---------- 今日 ---------- */
@@ -746,7 +872,67 @@ function renderToday(){
       + '</div>';
   }
 
-  el.innerHTML = head + '<div class="tl">'+timelineHTML(day.blocks, key, true)+'</div>' + notesHTML(day);
+  // 今日进度条
+  let doneBlk = 0;
+  day.blocks.forEach((b,i) => { if (localStorage.getItem('ck:'+key+':'+i) === '1') doneBlk++; });
+  const totalBlk = day.blocks.length;
+  const tp = '<div class="tprog"><div class="th">'
+    + '<div class="tl2">今日进度</div>'
+    + '<div class="tv"><b>'+doneBlk+'</b> / '+totalBlk+' 个时段</div></div>'
+    + '<div class="pb"><i style="width:'+Math.round(doneBlk/totalBlk*100)+'%"></i></div></div>';
+
+  el.innerHTML = head + tp + '<div class="tl">'+timelineHTML(day.blocks, key, true)+'</div>' + notesHTML(day);
+}
+
+/* ---------- 进度页 ---------- */
+function renderProgress(){
+  const el = document.getElementById('vProgress');
+  const keys = Object.keys(COURSES);
+
+  const cards = keys.map(k => {
+    const c = COURSES[k], s = courseStat(k);
+    const frac = c.total ? Math.min(1, s.done / c.total) : 0;
+    let right;
+    if (s.finished) right = '<span>已完成</span>';
+    else if (!s.days) right = '<span>' + s.text + '</span>';
+    else right = '<span>约 <b>' + s.text + '</b> 完成 · 还有 ' + s.days + ' 天</span>';
+    return '<div class="pc' + (s.finished?' done':'') + '">'
+      + '<div class="pc-h"><div class="pc-n">' + c.name + '<span class="pc-s">' + c.sub + '</span></div>'
+      + '<div class="pc-p">' + s.pct + '%</div></div>'
+      + '<div class="pb2"><i style="width:' + (frac*100) + '%"></i></div>'
+      + '<div class="pc-f"><span><b>' + s.done + '</b> / ' + c.total + ' 讲</span>' + right + '</div>'
+      + '</div>';
+  }).join('');
+
+  // 全局：所有课程合计
+  let tDone = 0, tAll = 0;
+  keys.forEach(k => { tDone += courseStat(k).done; tAll += COURSES[k].total; });
+
+  // 本周（当前周）各课程推进量
+  const wk = week.days.map(d => {
+    const items = [];
+    d.blocks.forEach(b => { if (b.c && COURSES[b.c]) items.push(COURSES[b.c].name + ' ×' + b.n); });
+    if (!items.length) return '';
+    return '<div class="kv"><span class="k">' + d.label + ' ' + md(parseD(d.date)) + '</span>'
+      + '<span class="v" style="font-size:12.5px">' + items.join('　') + '</span></div>';
+  }).join('');
+
+  el.innerHTML =
+      '<h2>总进度</h2><div class="box">'
+    +   '<div class="pc-h"><div class="pc-n">全部课程</div>'
+    +   '<div class="pc-p">' + (tAll ? Math.round(tDone/tAll*100) : 0) + '%</div></div>'
+    +   '<div class="pb2"><i style="width:' + (tAll ? tDone/tAll*100 : 0) + '%"></i></div>'
+    +   '<div class="pc-f"><span><b>' + tDone + '</b> / ' + tAll + ' 讲</span></div></div>'
+
+    + '<h2>分课程</h2>' + cards
+
+    + '<h2>本周安排</h2><div class="box">'
+    +   (wk || '<div class="muted">本周没有排课程推进</div>') + '</div>'
+
+    + '<div class="box warn"><div style="font-size:13px;color:var(--fg);font-weight:700">'
+    +   '⚠️ 课程总讲数是占位数字</div>'
+    +   '<div class="muted">诊断学 48 / 生理 56 / 英语 30 是我暂填的。'
+    +   '你按网盘里的实际课程列表告诉我真实数字，我改一行就全部重算。</div></div>';
 }
 
 /* ---------- 本周 ---------- */
@@ -913,6 +1099,9 @@ document.addEventListener('click', e => {
     const on = localStorage.getItem(k) === '1';
     localStorage.setItem(k, on ? '0' : '1');
     row.classList.toggle('done', !on);
+    // 打勾会推进课程进度 → 刷新相关视图
+    renderToday(); renderProgress(); renderWeek();
+    if (sheetDate) openDay(sheetDate);
     return;
   }
 
@@ -952,7 +1141,7 @@ function tick(){
   }
   renderHead(); renderToday();
 }
-function renderAll(){ renderHead(); renderToday(); renderWeek(); renderSchool(); renderRules(); renderSOS(); restore(); }
+function renderAll(){ renderHead(); renderToday(); renderWeek(); renderProgress(); renderSchool(); renderRules(); renderSOS(); restore(); }
 renderAll();
 setInterval(tick, 30000);
 </script>
