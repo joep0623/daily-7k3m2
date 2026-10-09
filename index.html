@@ -336,9 +336,9 @@ const B = (s, e, t, k, c, n) => ({ s, e, t, k, c: c || null, n: n || 0 });
    total = 这门课一共多少讲。⚠️ 下面的数字是占位，等你按网盘里的课程列表给我实际数字。
    改完之后：进度条、剩余讲数、预计完成日期都会自动重算。 */
 const COURSES = {
-  zhenduan: { name:'诊断学',      sub:'徐琦 · 网课',   total: 48 },
-  shengli:  { name:'生理学',      sub:'侯英健 · 网课', total: 56 },
-  yingyu:   { name:'英语真题精读', sub:'唐迟 · 阅读',   total: 30 },
+  zhenduan: { name:'诊断学', sub:'徐琦 · 症状6 / 体格11 / 实验11 / 器械10', total: 38 },
+  shengli:  { name:'生理学', sub:'侯英健 · 网课', total: 56 },
+  yingyu:   { name:'英语真题精读', sub:'唐迟 · 阅读', total: 30 },
 };
 /* 每周几要上课（用于推算未来的推进速度）
    Monday=1 … Sunday=0，对应 TPL 里的模板名 */
@@ -930,9 +930,9 @@ function renderProgress(){
     +   (wk || '<div class="muted">本周没有排课程推进</div>') + '</div>'
 
     + '<div class="box warn"><div style="font-size:13px;color:var(--fg);font-weight:700">'
-    +   '⚠️ 课程总讲数是占位数字</div>'
-    +   '<div class="muted">诊断学 48 / 生理 56 / 英语 30 是我暂填的。'
-    +   '你按网盘里的实际课程列表告诉我真实数字，我改一行就全部重算。</div></div>';
+    +   '⚠️ 部分总讲数还是占位</div>'
+    +   '<div class="muted"><b>诊断学 38 讲</b> 已按你的网盘课程表核实。'
+    +   '<b>生理 56 / 英语 30</b> 仍是占位 —— 把这两门的课程列表发我，改一行就全部重算。</div></div>';
 }
 
 /* ---------- 本周 ---------- */
