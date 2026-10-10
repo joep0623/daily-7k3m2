@@ -505,10 +505,28 @@ function trainTypeOf(dateStr){
   return TRAIN_CYCLE[(((CYCLE_ANCHOR_IDX + diff) % 4) + 4) % 4];
 }
 
+/* 周日：不排学习，但轮到训练日就照练（用户选的 B 方案） */
+const SUN_TRAIN = [
+  B('09:00','11:00','自然醒（周日补觉，不设闹钟）','rest'),
+  B('11:00','13:00','约会 / 个人时间','love'),
+  B('13:00','14:00','午饭','life'),
+  B('14:00','19:45','完全自由 · 不排学习 · 不计进度','rest'),
+  B('19:45','20:05','骑车去健身房','body'),
+  B('20:05','20:15','热身','body'),
+  B('20:15','21:25','训练（推/拉 70min · 腿日 80min）','body'),
+  B('21:25','21:55','练后餐 + 洗澡','body'),
+  B('21:55','22:15','骑车回宿舍','body'),
+  B('22:15','24:00','自由','rest'),
+  B('24:00','24:30','洗漱降速','base'),
+];
+function sundayBlocks(dateStr){
+  return trainTypeOf(dateStr) === 'rest' ? TPL.sunday : SUN_TRAIN;
+}
+
 /* 某天的默认安排：周日 > 周六 > 训练循环（周三叠加约会） */
 function defaultBlocks(dateStr){
   const dow = parseD(dateStr).getDay();
-  if (dow === 0) return TPL.sunday;
+  if (dow === 0) return sundayBlocks(dateStr);
   if (dow === 6) return TPL.saturday;
   const base = (trainTypeOf(dateStr) === 'rest') ? TPL.rest : TPL.train;
   return (dow === 3) ? withDateEve(base) : base;
@@ -652,7 +670,7 @@ const RULES = {
     ['休息日', '不健身，全天自习室（多 2 块）'],
     ['周三', '晚上 18:30–22:30 约会（当天不健身）'],
     ['周六', '家教全天 → 21:00 后硬练 → 会到 01:30 才睡'],
-    ['周日', '<b>无计划日</b>：不排学习、不计进度、不用打勾'],
+    ['周日', '<b>不排学习</b>：不计进度、不用打勾。轮到训练日则晚上照练'],
   ],
   todo: [
     '① 初试年份 —— 2027/12 还是 2028/12？（最重要，决定整张表的量级）',
