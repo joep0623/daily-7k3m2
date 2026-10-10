@@ -6,8 +6,10 @@
 用法：python3 gen_ics.py
 产出：schedule.ics —— 交给系统日历订阅，就能用原生桌面小组件看日程。
 
-设计：数据源只有一个（index.html 里的 TPL / WEEKS / SCHOOL_EVENTS），
-      本脚本用 JavaScriptCore 把那段 JS 跑一遍取出 JSON，不做重复定义。
+设计：数据源只有一个（index.html）。
+      本脚本把页面里那段 JS 跑一遍，直接调用页面自己的
+      blocksFor() / trainTypeOf()，所以训练循环、周三约会、
+      周六家教、周日无计划这些规则不会重复实现一遍。
 """
 
 import json
@@ -22,43 +24,49 @@ REPO = os.path.dirname(os.path.abspath(__file__))
 HTML = os.path.join(REPO, 'index.html')
 OUT = os.path.join(REPO, 'schedule.ics')
 
-HORIZON_DAYS = 120          # 往后生成多少天
+HORIZON_DAYS = 120
 TZID = 'Asia/Shanghai'
 CAL_NAME = '备考日程'
 
-# 星期 → 模板（Monday=0 ... Sunday=6）
-PATTERN = {0: 'workday', 1: 'workday', 2: 'wednesday',
-           3: 'workday', 4: 'workday', 5: 'saturday', 6: 'sunday'}
-
 KIND_LABEL = {'study': '学习', 'body': '健身', 'love': '个人时间',
               'school': '学校', 'life': '生活', 'rest': '自由', 'base': '底线'}
+TRAIN_LABEL = {'push': '推', 'pull': '拉', 'legs': '腿', 'rest': '休息'}
 
 
-# ---------- 1. 从 index.html 取出数据 ----------
+# ---------- 1. 从 index.html 取数据 ----------
 def load_data():
     html = open(HTML, encoding='utf-8').read()
     script = re.findall(r'<script>(.*?)</script>', html, re.S)[-1]
 
+    t = datetime.date.today()
     stub = """
-function El(){this.textContent='';this.innerHTML='';this.className='';this.style={};this.dataset={};}
-var document={getElementById:function(){return new El();},querySelectorAll:function(){return [];},addEventListener:function(){}};
+function El(){this.textContent='';this.innerHTML='';this.className='';this.style={};this.dataset={};
+ this.classList={add:function(){},remove:function(){},toggle:function(){},contains:function(){return false;}};}
+var document={getElementById:function(){return new El();},querySelectorAll:function(){return [];},addEventListener:function(){},body:{style:{}}};
 var localStorage={getItem:function(){return null;},setItem:function(){}};
 var window={scrollTo:function(){}};
 function setInterval(){}
 """
-    expr = "JSON.stringify({TPL:TPL, WEEKS:WEEKS, SCHOOL_EVENTS:SCHOOL_EVENTS})"
-    body = stub + script
+    expr = (
+        "(function(){\n"
+        "  var out = {};\n"
+        "  for (var i = 0; i < %d; i++){\n"
+        "    var d = new Date(%d, %d, %d + i);\n"
+        "    var k = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')"
+        "+'-'+String(d.getDate()).padStart(2,'0');\n"
+        "    out[k] = { blocks: blocksFor(k), train: trainTypeOf(k) };\n"
+        "  }\n"
+        "  return JSON.stringify({WEEKS:WEEKS, SCHOOL_EVENTS:SCHOOL_EVENTS, DAYS:out});\n"
+        "})()"
+    ) % (HORIZON_DAYS, t.year, t.month - 1, t.day)
 
-    tmp = os.path.join('/tmp', '_beikao_dump.js')
-
-    # macOS：用 JavaScriptCore（osascript）。末尾表达式即返回值。
+    tmp = '/tmp/_beikao_dump.js'
     if shutil.which('osascript'):
-        open(tmp, 'w', encoding='utf-8').write(body + '\n' + expr + ';\n')
+        open(tmp, 'w', encoding='utf-8').write(stub + script + '\n' + expr + ';\n')
         r = subprocess.run(['osascript', '-l', 'JavaScript', tmp],
                            capture_output=True, text=True)
-    # Linux/CI：用 node。需要显式打印。
     elif shutil.which('node'):
-        open(tmp, 'w', encoding='utf-8').write(body + '\nconsole.log(' + expr + ');\n')
+        open(tmp, 'w', encoding='utf-8').write(stub + script + '\nconsole.log(' + expr + ');\n')
         r = subprocess.run(['node', tmp], capture_output=True, text=True)
     else:
         raise SystemExit('找不到 osascript 或 node，无法从 index.html 提取数据')
@@ -85,7 +93,7 @@ def fold(line):
         b = ch.encode('utf-8')
         if len(cur) + len(b) > limit:
             out.append(cur)
-            cur = b' '          # 续行以一个空格开头
+            cur = b' '
             limit = 74
         cur += b
     out.append(cur)
@@ -108,50 +116,41 @@ def uid(*parts):
 
 # ---------- 3. 生成事件 ----------
 def build(data):
-    tpl, weeks, school = data['TPL'], data['WEEKS'], data['SCHOOL_EVENTS']
+    days = data['DAYS']
+    school = data['SCHOOL_EVENTS']
 
-    # WEEKS 里的具体日期优先（覆盖模板）
-    override = {}
-    for w in weeks:
-        for d in w['days']:
-            override[d['date']] = d['blocks']
-
-    today = datetime.date.today()
     now_stamp = datetime.datetime.now().strftime('%Y%m%dT%H%M%SZ')
     events = []
     stats = {}
 
-    for i in range(HORIZON_DAYS):
-        day = today + datetime.timedelta(days=i)
-        key = day.isoformat()
+    for key in sorted(days.keys()):
+        day = datetime.datetime.strptime(key, '%Y-%m-%d').date()
+        info = days[key]
+        train = info.get('train')
 
-        blocks = override.get(key)
-        if blocks is None:
-            tname = PATTERN[day.weekday()]
-            blocks = tpl.get(tname, [])
-            src = tname
-        else:
-            src = 'override'
-
-        for b in blocks:
+        for b in info['blocks']:
             sm, em = to_min(b['s']), to_min(b['e'])
             start = datetime.datetime.combine(day, datetime.time()) + datetime.timedelta(minutes=sm)
             end = datetime.datetime.combine(day, datetime.time()) + datetime.timedelta(minutes=em)
-            # 生活类不加前缀，学习/健身类加，方便在日历里一眼分辨
-            label = b['t']
+            cat = KIND_LABEL.get(b['k'], b['k'])
+            title = b['t']
+            # 健身块带上训练部位，日历里一眼看得出今天练什么
+            if b['k'] == 'body' and train and '训练' in title and train != 'rest':
+                title = title + '（' + TRAIN_LABEL.get(train, train) + '）'
             events.append({
-                'uid': uid(key, b['s'], label),
+                'uid': uid(key, b['s'], b['t']),
                 'start': start, 'end': end,
-                'summary': label,
-                'desc': KIND_LABEL.get(b['k'], b['k']),
-                'cat': KIND_LABEL.get(b['k'], b['k']),
+                'summary': title,
+                'desc': cat,
+                'cat': cat,
             })
-            stats[src] = stats.get(src, 0) + 1
+        stats[info.get('train', '?')] = stats.get(info.get('train', '?'), 0) + 1
 
     # 学校考试（全天事件）
+    horizon_end = datetime.date.today() + datetime.timedelta(days=HORIZON_DAYS)
     for e in school:
         d = datetime.datetime.strptime(e['date'], '%Y-%m-%d').date()
-        if d < today or d > today + datetime.timedelta(days=HORIZON_DAYS):
+        if d < datetime.date.today() or d > horizon_end:
             continue
         title = '⚠️ 考试：' + e['name'] + '（' + e['kind'] + '）'
         if e.get('place'):
@@ -205,4 +204,4 @@ if __name__ == '__main__':
     print('  事件数  : %d' % n)
     print('  文件大小: %.1f KB' % size)
     print('  覆盖范围: %s → %s' % (datetime.date.today(), end))
-    print('  来源分布: ' + '  '.join('%s=%d' % (k, v) for k, v in sorted(stats.items())))
+    print('  日期分布: ' + '  '.join('%s=%d天' % (k, v) for k, v in sorted(stats.items())))
