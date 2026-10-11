@@ -487,16 +487,34 @@ const TPL = {
   ],
 };
 
-/* 周三晚约会：17:00 之后的时段整段换掉（晚饭 + 准备 + 约会） */
-function withDateEve(blocks){
-  const head = blocks.filter(b => toMin(b.e) <= toMin('17:00'));
-  return head.concat([
-    B('17:00','18:00','晚饭','life'),
-    B('18:00','18:30','准备出门','life'),
+/* ★ 周三：晚上 18:30–22:30 约会。
+   ⚠️ 和晚上 19:45 健身直接冲突 → 轮到训练日时，健身提前到下午 15:10 出发。
+      这样约会不会断，练三休一也不断。 */
+function withDateEve(dateStr, blocks){
+  const TAIL = [
     B('18:30','22:30','约会（完全不学习）','love'),
     B('22:30','24:00','回家 / 洗漱 / 自由','rest'),
     B('24:00','24:30','洗漱降速，不碰手机','base'),
-  ]);
+  ];
+  // 轮不到训练：下午正常学，17:00 之后换约会
+  if (trainTypeOf(dateStr) === 'rest'){
+    const head = blocks.filter(b => toMin(b.e) <= toMin('17:00'));
+    return head.concat([
+      B('17:00','18:00','晚饭','life'),
+      B('18:00','18:30','准备出门','life'),
+    ], TAIL);
+  }
+  // 轮到训练：下午提前去练，练完再去约会
+  const head = blocks.filter(b => toMin(b.e) <= toMin('14:30'));
+  return head.concat([
+    B('14:30','14:50','收拾训练包','rest'),
+    B('14:50','15:10','骑车去健身房','body'),
+    B('15:10','15:20','热身','body'),
+    B('15:20','16:30','训练（推/拉 70min · 腿日 80min）','body'),
+    B('16:30','17:00','练后餐（30g 蛋白粉 + 15g 土豆泥粉）+ 洗澡','body'),
+    B('17:00','17:20','骑车回','body'),
+    B('17:20','18:30','晚饭 + 准备','life'),
+  ], TAIL);
 }
 
 /* 今天该练什么 */
@@ -529,7 +547,7 @@ function defaultBlocks(dateStr){
   if (dow === 0) return sundayBlocks(dateStr);
   if (dow === 6) return TPL.saturday;
   const base = (trainTypeOf(dateStr) === 'rest') ? TPL.rest : TPL.train;
-  return (dow === 3) ? withDateEve(base) : base;
+  return (dow === 3) ? withDateEve(dateStr, base) : base;
 }
 
 const WEEKS = [
@@ -741,13 +759,43 @@ const KIND = { study:'学习', body:'身体', love:'约会', school:'学校', li
 /* ---------- 状态 ---------- */
 let todayKey = ymd(logicalNow().date);
 
-/* 自动选中「今天」所在的那一周；今天不在任何一周里就停在最新一周 */
-function pickWeekIdx(){
-  const i = WEEKS.findIndex(w => w.days.some(d => d.date === todayKey));
-  return i >= 0 ? i : WEEKS.length - 1;
+/* ★ 本周要显示什么：
+   1) 今天在 WEEKS 的显式记录里（如第 0 周）→ 用那条，保留历史与当时的备注
+   2) 否则 → 按「训练循环 + 模板」自动生成今天所在的那个自然周（周一~周日）
+   所以以后不用每周手写 WEEKS，网页自己会排。 */
+const _wkCache = {};
+function buildWeek(dateObj){
+  const cacheKey = ymd(dateObj);
+  if (_wkCache[cacheKey]) return _wkCache[cacheKey];
+  const dow = dateObj.getDay();
+  const mon = new Date(dateObj.getFullYear(), dateObj.getMonth(),
+                       dateObj.getDate() - ((dow + 6) % 7));
+  const days = [];
+  for (let i = 0; i < 7; i++){
+    const d = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i);
+    const k = ymd(d), w = d.getDay(), tt = trainTypeOf(k);
+    const tl = (tt === 'rest') ? '' : ' · 训练 ' + TRAIN_LABEL[tt];
+    let tag;
+    if (w === 0)      tag = '不排学习' + tl;
+    else if (w === 6) tag = '家教 + 硬练';
+    else if (w === 3) tag = '约会' + tl;
+    else              tag = (tt === 'rest') ? '训练休息' : '训练 ' + TRAIN_LABEL[tt];
+    days.push({ date: k, label: WEEKDAYS[w], tag, blocks: blocksFor(k) });
+  }
+  const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
+  return (_wkCache[cacheKey] = {
+    id: 'auto',
+    title: '本周',
+    range: md(mon) + ' – ' + md(sun),
+    note: '按「健身日 / 休息日」模板 + 4 天训练循环自动排的。',
+    days
+  });
 }
-let weekIdx = pickWeekIdx();
-let week = WEEKS[weekIdx];
+function computeWeek(){
+  const ex = WEEKS.find(w => w.days.some(d => d.date === todayKey));
+  return ex || buildWeek(logicalNow().date);
+}
+let week = computeWeek();
 
 /* 当前所处阶段（自动识别） */
 function currentStage(){
@@ -845,6 +893,21 @@ function studyH(blocks){
 
 /* ---------- 课程进度 ---------- */
 
+/* ★ 临时调整：按「开始时间」替换某一天的某个时段。
+   只为「一次性事件」用（临考冲刺、突发安排），用完就删 —— 不动模板本身。
+   格式： { '日期': { '开始时间': B(...) } } */
+const PATCH = {
+  /* 10/14 有实操考 → 前两天把「复盘」那块换成实操练习（1:1 替换，不加时长）。
+     练不够就用后面 18:50–19:45 的机动时间接着练。 */
+  '2026-10-12': { '18:00': B('18:00','18:50','⚠️ 实操练习：基础护理学技术（无菌技术 / 输液法）','study') },
+  '2026-10-13': { '18:00': B('18:00','18:50','⚠️ 实操练习：基础护理学技术（无菌技术 / 输液法）','study') },
+};
+function applyPatch(dateStr, blocks){
+  const p = PATCH[dateStr];
+  if (!p) return blocks;
+  return blocks.map(b => p[b.s] ? Object.assign({}, b, p[b.s]) : b);
+}
+
 /* 取某天的时段：WEEKS 里有就用它，否则按「训练循环 + 星期」推（带缓存） */
 const _bfCache = {};
 function blocksFor(dateStr){
@@ -855,7 +918,7 @@ function blocksFor(dateStr){
     if (d){ out = d.blocks; break; }
   }
   if (!out) out = defaultBlocks(dateStr);
-  return (_bfCache[dateStr] = out);
+  return (_bfCache[dateStr] = applyPatch(dateStr, out));
 }
 
 /* 该课程已完成多少讲（= 所有已打勾的带课程时段之和） */
@@ -1318,8 +1381,7 @@ function tick(){
   if (ymd(date) !== lastKey){
     lastKey = ymd(date);
     todayKey = ymd(date);
-    weekIdx = pickWeekIdx();
-    week = WEEKS[weekIdx];
+    week = computeWeek();
     renderAll();
     return;
   }
