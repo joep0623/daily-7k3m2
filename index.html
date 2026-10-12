@@ -862,14 +862,10 @@ function timelineHTML(blocks, key, withNow){
     const dk = 'ck:'+key+':'+i;
     const done = localStorage.getItem(dk) === '1';
     const cls = ['row', b.k, past?'past':'', isLive?'live':'', done?'done':''].filter(Boolean).join(' ');
-    let crs = '';
-    if (b.c && COURSES[b.c]){
-      crs = '<div class="crs">' + lectureLabel(key, i, b.c) + '</div>';
-    }
     return '<div class="'+cls+'" data-ck="'+dk+'">'
       + '<div class="tm">'+fmt(b.sm)+'<span class="e">'+fmt(b.em)+'</span></div>'
       + '<div class="bd"><div class="tt">'+b.t+(isLive?'<span class="pillnow">现在</span>':'')+'</div>'
-      + '<div class="tag">'+KIND[b.k]+'</div>'+crs+'</div></div>';
+      + '<div class="tag">'+KIND[b.k]+'</div></div></div>';
   }).join('');
 }
 
@@ -923,12 +919,19 @@ function blocksFor(dateStr){
   return (_bfCache[dateStr] = applyPatch(dateStr, out));
 }
 
-/* 该课程已完成多少讲（= 所有已打勾的带课程时段之和） */
+/* 该课程已完成多少讲（= 所有已打勾的带课程时段之和）
+   ⚠️ 不能只遍历 WEEKS —— 自动生成的日期不在 WEEKS 里，那些打勾会漏掉。
+      改成直接扫 localStorage 里所有已打勾的 key（数量很少，很快）。 */
 function courseDone(key){
-  let done = 0;
-  WEEKS.forEach(w => w.days.forEach(d => d.blocks.forEach((b,i) => {
-    if (b.c === key && b.n && localStorage.getItem('ck:'+d.date+':'+i) === '1') done += b.n;
-  })));
+  let done = 0, n = 0;
+  try { n = localStorage.length; } catch (e){ n = 0; }
+  for (let i = 0; i < n; i++){
+    const k = localStorage.key(i);
+    if (!k || k.slice(0, 3) !== 'ck:' || localStorage.getItem(k) !== '1') continue;
+    const p = k.split(':');                       // ck : YYYY-MM-DD : idx
+    const b = (blocksFor(p[1]) || [])[parseInt(p[2], 10)];
+    if (b && b.c === key && b.n) done += b.n;
+  }
   return done;
 }
 
@@ -984,35 +987,12 @@ function recentWeek(key){
   return { planned, actual, gap: planned - actual };
 }
 
-/* ★ 讲次编号 —— 基于「实际完成数」，不是计划顺序。
-   已完成 → 显示 ✓
-   未完成 → 显示「全局已完成数 + 同一天里排在前面且未完成的块 + 1」
-
-   效果：你落后了，明天那块自动显示你真正该看的下一讲，
-        不需要任何「顺延」逻辑，也不会雪崩。
-   代价：已完成的那块不再显示具体讲次（改成 ✓）。这样编号不会随完成而漂移。 */
-const _lnCache = {};
-function lectureLabel(dateStr, idx, key){
+/* ★ 下一讲 = 已完成数 + 1。基于实际完成，不看计划排到哪。
+   只在「进度」页显示 —— 日程里不再钉讲次（用户 2026-10-12 的要求）。 */
+function nextLecture(key){
   const c = COURSES[key];
-  if (!c) return '';
-  const done1 = localStorage.getItem('ck:'+dateStr+':'+idx) === '1';
-  const ck = [dateStr, idx, key, courseDone(key), done1 ? 1 : 0].join('|');
-  if (_lnCache[ck] != null) return _lnCache[ck];
-
-  let out;
-  if (done1){
-    out = c.name + ' · ✓ 已完成';
-  } else {
-    let ahead = 0;
-    const bl = blocksFor(dateStr);
-    for (let i = 0; i < idx; i++){
-      if (bl[i] && bl[i].c === key &&
-          localStorage.getItem('ck:'+dateStr+':'+i) !== '1') ahead += bl[i].n;
-    }
-    const n = Math.min(courseDone(key) + ahead + 1, c.total);
-    out = c.name + ' · 第 ' + n + ' 讲 / 共 ' + c.total;
-  }
-  return (_lnCache[ck] = out);
+  if (!c) return 0;
+  return Math.min(courseDone(key) + 1, c.total);
 }
 
 /* 实际推进速度：从计划起点到今天，平均每天完成多少讲 */
@@ -1130,7 +1110,9 @@ function renderProgress(){
       + '<div class="pc-h"><div class="pc-n">' + c.name + '<span class="pc-s">' + c.sub + '</span></div>'
       + '<div class="pc-p">' + s.pct + '%</div></div>'
       + '<div class="pb2"><i style="width:' + (frac*100) + '%"></i></div>'
-      + '<div class="pc-f"><span><b>' + s.done + '</b> / ' + c.total + ' 讲</span>' + right + '</div>'
+      + '<div class="pc-f"><span><b>' + s.done + '</b> / ' + c.total + ' 讲'
+      +   (s.finished ? '' : '　·　下一讲 第 <b>' + nextLecture(k) + '</b> 讲')
+      + '</span>' + right + '</div>'
       + basis + gap
       + '</div>';
   }).join('');
