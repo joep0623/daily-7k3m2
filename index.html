@@ -156,6 +156,16 @@ section.on{display:block; animation:fade .18s ease-out}
 .nexthint{font-size:12.5px; color:var(--fg2); margin-top:6px}
 .nexthint b{color:var(--fg); font-weight:600}
 
+/* ---------- 冲刺阶段横幅 ---------- */
+.phase{background:var(--card); border:1px solid var(--tint-exam-line); border-radius:14px;
+  padding:13px 16px; margin-bottom:14px; background:var(--tint-exam)}
+.phase .ph-t{font-size:13px; font-weight:700; color:var(--exam); letter-spacing:.3px}
+.phase .ph-b{font-size:13px; color:var(--fg2); margin-top:6px}
+.phase .ph-b b{color:var(--fg)}
+.phase .ph-bar{height:6px; background:var(--card2); border-radius:3px; overflow:hidden; margin-top:8px}
+.phase .ph-bar i{display:block; height:100%; background:var(--exam); border-radius:3px; transition:width .4s}
+.phase .ph-n{font-size:11.5px; color:var(--fg3); margin-top:8px; line-height:1.5}
+
 /* ---------- 进度 ---------- */
 .tprog{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 16px; margin-bottom:14px}
 .tprog .th{display:flex; align-items:baseline; justify-content:space-between; gap:10px}
@@ -344,7 +354,24 @@ const B = (s, e, t, k, c, n) => ({ s, e, t, k, c: c || null, n: n || 0 });
         shengli: { name:'生理学', sub:'侯英健 · 网课', total: 56 },  */
 const COURSES = {
   zhenduan: { name:'诊断学', sub:'徐琦 · 症状6 / 体格11 / 实验11 / 器械10', total: 38 },
+  yitong:   { name:'医学统计学', sub:'B站速成 · 12 讲 / 共 2h', total: 12 },
 };
+
+/* ★ 暂停训练的日子（体测等）。这些天不练，循环照走。 */
+const NO_TRAIN = ['2026-10-17', '2026-10-18'];
+
+/* ★ 冲刺阶段：在日期区间内把某些科目的时段换成别的课。
+   标题是动态的 —— 网课看完（12 讲）之后，"看课"块自动改叫"第二轮复习"。
+   这样不用担心阶段边界和实际进度错位。 */
+const PHASES = [
+  { from:'2026-10-13', to:'2026-10-25', name:'医学统计学突击',
+    swap: {
+      shengli: { c:'yitong', n:1,
+                 t:'医学统计学 · 网课 + 笔记', tDone:'医学统计学 · 第二轮复习' },
+      yingyu:  { c:'yitong', n:0,
+                 t:'医学统计学 · 习题 + 错题' },
+    } },
+];
 /* 每周几要上课（用于推算未来的推进速度）
    Monday=1 … Sunday=0，对应 TPL 里的模板名 */
 
@@ -387,6 +414,7 @@ const SCHOOL_EVENTS = [
   { date:'2026-12-22', name:'临床诊断学',     kind:'实操', place:'诊断学实验室' },
   { date:'2026-12-24', name:'手术学基础',     kind:'实操', place:'珠江医院临床技能中心' },
   { date:'2026-12-28', name:'中医学基础',     kind:'理论', place:'' },
+  { date:'2026-10-18', name:'体质测试（体测）', kind:'体测', place:'待通知' },
   { date:'2027-01-11', name:'三段考 · 综合考试一', kind:'机考', place:'教学馆机房（待官方公布）' },
 ];
 
@@ -476,6 +504,15 @@ const TPL = {
     B('23:50','24:40','收拾 + 洗漱（会到 01:30 才睡，周日补）','base'),
   ],
 
+  /* ---- 周六（体测前等：家教照做，但不练）---- */
+  saturdayNotrain: [
+    B('07:30','08:00','起床、早餐','life'),
+    B('08:00','21:00','家教（全天）· 通勤背单词 / 医统小卡片','school'),
+    B('21:00','21:40','医学统计学 · 刷题（碎片）','study'),
+    B('21:40','23:30','自由','rest'),
+    B('23:30','24:00','洗漱','base'),
+  ],
+
   /* ---- 周日：无计划日（不排学习、不计进度、不用打勾）---- */
   sunday: [
     B('09:00','11:00','自然醒（周日补觉，不设闹钟）','rest'),
@@ -517,8 +554,9 @@ function withDateEve(dateStr, blocks){
   ], TAIL);
 }
 
-/* 今天该练什么 */
+/* 今天该练什么。NO_TRAIN 里的日子一律当休息（体测等），循环照走 */
 function trainTypeOf(dateStr){
+  if (NO_TRAIN.indexOf(dateStr) >= 0) return 'rest';
   const diff = Math.round((parseD(dateStr) - parseD(CYCLE_ANCHOR)) / 86400000);
   return TRAIN_CYCLE[(((CYCLE_ANCHOR_IDX + diff) % 4) + 4) % 4];
 }
@@ -540,12 +578,16 @@ const SUN_TRAIN = [
 function sundayBlocks(dateStr){
   return trainTypeOf(dateStr) === 'rest' ? TPL.sunday : SUN_TRAIN;
 }
+/* 周六：家教全天，之后照常硬练；但 NO_TRAIN 的日子不练 */
+function saturdayBlocks(dateStr){
+  return trainTypeOf(dateStr) === 'rest' ? TPL.saturdayNotrain : TPL.saturday;
+}
 
 /* 某天的默认安排：周日 > 周六 > 训练循环（周三叠加约会） */
 function defaultBlocks(dateStr){
   const dow = parseD(dateStr).getDay();
   if (dow === 0) return sundayBlocks(dateStr);
-  if (dow === 6) return TPL.saturday;
+  if (dow === 6) return saturdayBlocks(dateStr);
   const base = (trainTypeOf(dateStr) === 'rest') ? TPL.rest : TPL.train;
   return (dow === 3) ? withDateEve(dateStr, base) : base;
 }
@@ -895,15 +937,55 @@ function studyH(blocks){
    只为「一次性事件」用（临考冲刺、突发安排），用完就删 —— 不动模板本身。
    格式： { '日期': { '开始时间': B(...) } } */
 const PATCH = {
-  /* 10/14 有实操考 → 前两天把「复盘」那块换成实操练习（1:1 替换，不加时长）。
-     练不够就用后面 18:50–19:45 的机动时间接着练。 */
-  '2026-10-12': { '18:30': B('18:30','19:20','⚠️ 实操练习：基础护理学技术（无菌技术 / 输液法）','study') },
-  '2026-10-13': { '18:30': B('18:30','19:20','⚠️ 实操练习：基础护理学技术（无菌技术 / 输液法）','study') },
+  /* 10/14 有实操考 → 前一天把「复盘」那块换成实操练习（1:1 替换）。 */
+  '2026-10-13': { '18:30': B('18:30','19:20','⚠️ 实操练习：基础护理学技术（无菌技术 / 输液法）','study'),
+                  '19:20': B('19:20','19:45','机动','rest') },
+  /* 10/25 周日：考前半天冲刺（破例动用周日，第二天就考） */
+  '2026-10-25': [
+    B('08:30','09:00','起床、早餐','life'),
+    B('09:00','09:50','⚠️ 医统冲刺① 全书串讲','study','yitong',0),
+    B('09:50','10:00','休息 10min','rest'),
+    B('10:00','10:50','⚠️ 医统冲刺② 公式默写','study','yitong',0),
+    B('10:50','11:10','休息 20min','rest'),
+    B('11:10','12:00','⚠️ 医统冲刺③ 错题重做','study','yitong',0),
+    B('12:00','13:00','午饭','life'),
+    B('13:00','13:50','午休 50min','life'),
+    B('13:50','14:40','⚠️ 医统冲刺④ 模拟卷（限时）','study','yitong',0),
+    B('14:40','15:00','休息 20min','rest'),
+    B('15:00','15:50','⚠️ 医统冲刺⑤ 订正 + 查漏','study','yitong',0),
+    B('15:50','16:10','休息','rest'),
+    B('16:10','17:00','⚠️ 医统冲刺⑥ 高频考点再过一遍','study','yitong',0),
+    B('17:00','19:00','晚饭 + 完全放松','life'),
+    B('19:00','19:45','明天考试用品检查 + 早睡准备','rest'),
+    B('19:45','24:00','自由 · 早点睡','rest'),
+    B('24:00','24:30','洗漱降速','base'),
+  ],
 };
 function applyPatch(dateStr, blocks){
   const p = PATCH[dateStr];
   if (!p) return blocks;
+  if (Array.isArray(p)) return p;              // 整天替换
   return blocks.map(b => p[b.s] ? Object.assign({}, b, p[b.s]) : b);
+}
+
+/* ★ 阶段替换：把「生理 / 英语」的时段换成冲刺科目。
+   如果该阶段的主课已经看完（courseDone ≥ total），"看课"块自动改叫 tDone。 */
+function applyPhase(dateStr, blocks){
+  const ph = PHASES.find(p => dateStr >= p.from && dateStr <= p.to);
+  if (!ph) return blocks;
+  const over = (key) => {
+    const c = COURSES[key];
+    return c ? courseDone(key) >= c.total : false;
+  };
+  return blocks.map(b => {
+    const s = b.c && ph.swap[b.c];
+    if (!s) return b;
+    const t = (s.tDone && s.c && over(s.c)) ? s.tDone : s.t;
+    return Object.assign({}, b, { c: s.c || null, n: s.n || 0, t });
+  });
+}
+function phaseOf(dateStr){
+  return PHASES.find(p => dateStr >= p.from && dateStr <= p.to) || null;
 }
 
 /* 取某天的时段：WEEKS 里有就用它，否则按「训练循环 + 星期」推（带缓存） */
@@ -916,7 +998,7 @@ function blocksFor(dateStr){
     if (d){ out = d.blocks; break; }
   }
   if (!out) out = defaultBlocks(dateStr);
-  return (_bfCache[dateStr] = applyPatch(dateStr, out));
+  return (_bfCache[dateStr] = applyPatch(dateStr, applyPhase(dateStr, out)));
 }
 
 /* 该课程已完成多少讲（= 所有已打勾的带课程时段之和）
@@ -1071,7 +1153,20 @@ function renderToday(){
     + '<div class="tv"><b>'+doneBlk+'</b> / '+totalBlk+' 个时段</div></div>'
     + '<div class="pb"><i style="width:'+Math.round(doneBlk/totalBlk*100)+'%"></i></div></div>';
 
-  el.innerHTML = head + tp + '<div class="tl">'+timelineHTML(day.blocks, key, true)+'</div>' + notesHTML(day);
+  // 冲刺阶段横幅
+  const ph = phaseOf(key);
+  let banner = '';
+  if (ph){
+    const st = courseStat('yitong');
+    banner = '<div class="phase"><div class="ph-t">⚡ ' + ph.name + '</div>'
+      + '<div class="ph-b">医学统计学 已完成 <b>' + st.done + ' / ' + COURSES.yitong.total + '</b> 讲'
+      + (st.finished ? '（网课已过完，转刷题）' : '') + '</div>'
+      + '<div class="ph-bar"><i style="width:' + st.pct + '%"></i></div>'
+      + '<div class="ph-n">10/26 考试 · 还剩 ' + Math.round((parseD('2026-10-26') - parseD(key))/86400000) + ' 天。'
+      + '生理 / 英语 的时段已临时让给医统。</div></div>';
+  }
+
+  el.innerHTML = head + banner + tp + '<div class="tl">'+timelineHTML(day.blocks, key, true)+'</div>' + notesHTML(day);
 }
 
 /* ---------- 进度页 ---------- */
