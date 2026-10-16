@@ -1006,7 +1006,7 @@ function timelineHTML(blocks, key, withNow){
     const cls = ['row', b.k, past?'past':'', isLive?'live':'', done?'done':''].filter(Boolean).join(' ');
     return '<div class="'+cls+'" data-ck="'+dk+'">'
       + '<div class="tm">'+fmt(b.sm)+'<span class="e">'+fmt(b.em)+'</span></div>'
-      + '<div class="bd"><div class="tt">'+b.t+(isLive?'<span class="pillnow">现在</span>':'')+'</div>'
+      + '<div class="bd"><div class="tt">'+blockTitle(b)+(isLive?'<span class="pillnow">现在</span>':'')+'</div>'
       + '<div class="tag">'+KIND[b.k]+'</div></div></div>';
   }).join('');
 }
@@ -1069,20 +1069,28 @@ function applyPatch(dateStr, blocks){
 }
 
 /* ★ 阶段替换：把「生理 / 英语」的时段换成冲刺科目。
-   如果该阶段的主课已经看完（courseDone ≥ total），"看课"块自动改叫 tDone。 */
+   ⚠️ 这里绝对不能再调 courseDone() —— courseDone 会反过来调 blocksFor，
+      形成无限递归（2026-10-16 白屏事故）。
+      所以只做「结构替换」，动态标题交给 blockTitle() 在渲染时决定。 */
 function applyPhase(dateStr, blocks){
   const ph = PHASES.find(p => dateStr >= p.from && dateStr <= p.to);
   if (!ph) return blocks;
-  const over = (key) => {
-    const c = COURSES[key];
-    return c ? courseDone(key) >= c.total : false;
-  };
   return blocks.map(b => {
     const s = b.c && ph.swap[b.c];
     if (!s) return b;
-    const t = (s.tDone && s.c && over(s.c)) ? s.tDone : s.t;
-    return Object.assign({}, b, { c: s.c || null, n: s.n || 0, t });
+    return Object.assign({}, b, {
+      c: s.c || null, n: s.n || 0, t: s.t, altT: s.tDone || null
+    });
   });
+}
+
+/* 时段显示用的标题。主课学完时，带 altT 的块改用备用标题。 */
+function blockTitle(b){
+  if (b.altT && b.c){
+    const c = COURSES[b.c];
+    if (c && courseDone(b.c) >= c.total) return b.altT;
+  }
+  return b.t;
 }
 function phaseOf(dateStr){
   return PHASES.find(p => dateStr >= p.from && dateStr <= p.to) || null;
@@ -1448,7 +1456,7 @@ function renderWeek(){
       const lis = d.blocks.map(b => {
         const hm = toMin(b.e) - toMin(b.s) >= 150;
         return '<li class="'+(hm?'hi':'')+'"><span class="t">'+b.s+'</span>'
-          + '<span class="n"><span class="dot '+b.k+'"></span> '+b.t+'</span></li>';
+          + '<span class="n"><span class="dot '+b.k+'"></span> '+blockTitle(b)+'</span></li>';
       }).join('');
       const wd = ['周日','周一','周二','周三','周四','周五','周六'][parseD(d.date).getDay()];
       const exD = SCHOOL_EVENTS.filter(e => e.date === d.date);
