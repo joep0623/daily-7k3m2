@@ -188,6 +188,39 @@ section.on{display:block; animation:fade .18s ease-out}
 .pc-b b{color:var(--fg2); font-weight:600}
 .pc-b.bad b{color:var(--exam)}
 .pc-b.ok  b{color:var(--body)}
+
+/* 逐讲明细 */
+.pc-x{
+  font-size:12px; color:var(--study); font-weight:600; margin-top:10px;
+  padding-top:9px; border-top:1px dashed var(--line);
+  display:flex; justify-content:space-between; align-items:center; cursor:pointer;
+}
+.pc-x:active{opacity:.55}
+.pc-l{margin-top:12px}
+.lgrp{margin-bottom:13px}
+.lgrp:last-child{margin-bottom:0}
+.lgn{
+  font-size:11px; font-weight:700; color:var(--fg3); letter-spacing:.5px;
+  display:flex; justify-content:space-between; margin-bottom:5px;
+  padding-bottom:5px; border-bottom:1px solid var(--line);
+}
+.lgn .lgc{font-weight:400; font-variant-numeric:tabular-nums}
+.llist{list-style:none; margin:0; padding:0}
+.lec{
+  display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--fg2);
+  padding:5.5px 4px; border-radius:6px; cursor:pointer;
+}
+.lec:active{background:var(--card2)}
+.lec .bx2{
+  flex:0 0 15px; height:15px; border:1.5px solid var(--line); border-radius:4px;
+  display:flex; align-items:center; justify-content:center; font-size:10px;
+  color:transparent; transition:.15s;
+}
+.lec.ok .bx2{background:var(--body); border-color:var(--body); color:#0f1115}
+.lec.ok .lt{text-decoration:line-through; opacity:.45}
+.lec .ln{flex:0 0 20px; font-size:11px; color:var(--fg3); text-align:right; font-variant-numeric:tabular-nums}
+.lec .lt{flex:1; min-width:0; word-break:break-word}
+.lec .ld{flex:0 0 auto; font-size:10.5px; color:var(--fg3); font-variant-numeric:tabular-nums}
 .pc.done .pc-p{color:var(--body)}
 .pc.done .pb2 i{background:var(--body)}
 .row .crs{font-size:10.5px; color:var(--study); font-weight:700; margin-top:2px}
@@ -353,9 +386,46 @@ const B = (s, e, t, k, c, n) => ({ s, e, t, k, c: c || null, n: n || 0 });
       选定之后加一行即可，例如：
         shengli: { name:'生理学', sub:'侯英健 · 网课', total: 56 },  */
 const COURSES = {
-  zhenduan: { name:'诊断学', sub:'徐琦 · 症状6 / 体格11 / 实验11 / 器械10', total: 38 },
-  yitong:   { name:'医学统计学', sub:'B站速成 · 12 讲 / 共 2h', total: 12 },
-  shengli:  { name:'生理学', sub:'刘忠保·考研强化 · 29 讲 / 21.4h', total: 29 },
+  zhenduan: { name:'诊断学', sub:'徐琦 · 症状6 / 体格11 / 实验11 / 器械10', total: 38,
+    groups: [
+      { name:'常见症状学', items:[
+        '概论·发热·水肿','咳嗽咳痰·咯血','胸痛·呼吸困难','呕血·腹痛','黄疸·血尿','意识障碍' ] },
+      { name:'体格检查', items:[
+        '一般检查','头颈部检查','胸部检查','心脏检查（视、触、叩）','心脏听诊·心音',
+        '心脏听诊·杂音','血管检查·总结','腹部检查（视诊）','腹部检查（触、叩、听）',
+        '脊柱与四肢检查','常用神经系统检查' ] },
+      { name:'实验室检查', items:[
+        '血常规','尿常规','尿生化','便常规','痰液检查','脑脊液检查',
+        '骨髓检查（概述～油镜）','骨髓检查（细胞化学染色）','肝功能检查',
+        '肾功能·血气分析','实验室检查综合' ] },
+      { name:'器械检查', items:[
+        '心电图（原理·导联）','心电图（测量·心电轴·肥大）','心电图（缺血·梗死·窦性心律失常）',
+        '心电图（期前收缩·心动过速·房室阻滞）','胸部X线 · 基本病变','胸部X线 · 常见疾病',
+        '腹部B超','内镜检查','肺功能检查','超声心动图' ] },
+    ] },
+
+  shengli: { name:'生理学', sub:'刘忠保·考研强化 · 29 讲 / 21.4h', total: 29,
+    groups: [
+      { name:'细胞', items:[
+        '物质转运','信号转导','静息电位','动作电位','肌细胞收缩' ] },
+      { name:'血液', items:[ '血液①','血液②' ] },
+      { name:'循环', items:[
+        '概述','心肌电','机械活动','血管生理','调节①','调节②' ] },
+      { name:'呼吸', items:[ '概述','通气','换气','运输与调节' ] },
+      { name:'消化与代谢', items:[ '消化','能量代谢' ] },
+      { name:'肾脏', items:[ '肾脏①','肾脏②' ] },
+      { name:'感官', items:[ '感官①','视觉器官','感官③' ] },
+      { name:'神经', items:[ '神经①','神经②','神经③','神经④' ] },
+      { name:'内分泌与生殖', items:[ '三条靶腺轴 · 四个促激素' ] },
+    ] },
+
+  yitong: { name:'医学统计学', sub:'B站速成 · 12 讲 / 共 2h', total: 12,
+    groups: [
+      { name:'全部', items:[
+        '绪论','定量数据的统计描述','正态分布与医学参考值范围','定性数据的统计描述',
+        '统计表与统计图','参数估计与假设检验','t 检验','方差分析','X² 检验',
+        '秩和检验','线性回归与相关','SPSS 结果分析' ] },
+    ] },
 };
 
 /* ★ 暂停训练的日子（体测等）。这些天不练，循环照走。 */
@@ -1018,6 +1088,88 @@ function courseDone(key){
   return done;
 }
 
+/* ★ 课程的「时段表」：按时间顺序，每个时段推进 n 讲。
+   第 L 讲 ↔ 第 L 个时段。进度页勾讲 ↔ 日程打勾，靠它双向同步。 */
+const _slotsCache = {};
+function courseSlots(key){
+  if (_slotsCache[key]) return _slotsCache[key];
+  const c = COURSES[key];
+  const out = [];
+  let acc = 0;
+  const start = parseD(PLAN_START);
+  for (let i = 0; i < 300 && acc < c.total; i++){
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const ds = ymd(d);
+    const bl = blocksFor(ds);
+    for (let idx = 0; idx < bl.length && acc < c.total; idx++){
+      const b = bl[idx];
+      if (b.c !== key || !b.n) continue;
+      out.push({ date: ds, idx, n: b.n, from: acc, title: b.t });
+      acc += b.n;
+    }
+  }
+  return (_slotsCache[key] = out);
+}
+
+/* 第 L 讲（1 起）落在哪个时段 */
+function slotOfLecture(key, L){
+  const slots = courseSlots(key);
+  const i = L - 1;
+  for (let k = 0; k < slots.length; k++){
+    const s = slots[k];
+    if (i >= s.from && i < s.from + s.n) return s;
+  }
+  return null;
+}
+
+/* 该讲在日程里勾了没 */
+function lectureDone(key, L){
+  const s = slotOfLecture(key, L);
+  if (!s) return false;
+  return localStorage.getItem('ck:'+s.date+':'+s.idx) === '1';
+}
+
+/* 进度页勾某一讲 → 同步到日程里对应的那个时段 */
+function toggleLecture(key, L, on){
+  const s = slotOfLecture(key, L);
+  if (!s) return false;
+  localStorage.setItem('ck:'+s.date+':'+s.idx, on ? '1' : '0');
+  return true;
+}
+
+/* 按计划到今天「应该」完成多少讲 */
+function planToDate(key){
+  const t = logicalNow().date;
+  let n = 0;
+  courseSlots(key).forEach(s => { if (parseD(s.date) <= t) n += s.n; });
+  return Math.min(n, COURSES[key].total);
+}
+
+/* 逐讲明细 HTML（可勾选） */
+function lectureListHTML(key){
+  const c = COURSES[key];
+  if (!c.groups) return '';
+  let L = 0;
+  return c.groups.map(g => {
+    let gd = 0;
+    const rows = g.items.map(name => {
+      L++;
+      const done = lectureDone(key, L);
+      if (done) gd++;
+      const s = slotOfLecture(key, L);
+      const when = s ? md(parseD(s.date)) : '—';
+      return '<li class="lec'+(done?' ok':'')+'" data-lec="'+key+':'+L+'">'
+        + '<span class="bx2">✓</span>'
+        + '<span class="ln">'+L+'</span>'
+        + '<span class="lt">'+name+'</span>'
+        + '<span class="ld">'+when+'</span></li>';
+    }).join('');
+    return '<div class="lgrp"><div class="lgn">'+g.name
+      + '<span class="lgc">'+gd+' / '+g.items.length+'</span></div>'
+      + '<ul class="llist">'+rows+'</ul></div>';
+  }).join('');
+}
+
 /* 未来 days 天的日均推进讲数（用模板推算） */
 function dailyRate(key, days){
   let sum = 0;
@@ -1053,20 +1205,10 @@ function courseStat(key){
            etaPast: eta > parseD(EXAM_DATE) };
 }
 
-/* 最近 7 天：计划推多少讲 vs 实际完成多少讲 */
-function recentWeek(key){
-  const t = logicalNow().date;
-  let planned = 0, actual = 0;
-  for (let i = 0; i < 7; i++){
-    const d = new Date(t.getFullYear(), t.getMonth(), t.getDate() - i);
-    const ds = ymd(d);
-    if (ds < PLAN_START) continue;
-    blocksFor(ds).forEach((b, idx) => {
-      if (b.c !== key) return;
-      planned += b.n;
-      if (localStorage.getItem('ck:'+ds+':'+idx) === '1') actual += b.n;
-    });
-  }
+/* 欠账：按计划到今天应完成 vs 实际完成 */
+function backlog(key){
+  const planned = planToDate(key);
+  const actual = Math.min(courseDone(key), COURSES[key].total);
   return { planned, actual, gap: planned - actual };
 }
 
@@ -1176,7 +1318,7 @@ function renderProgress(){
   const keys = Object.keys(COURSES);
 
   const cards = keys.map(k => {
-    const c = COURSES[k], s = courseStat(k), rw = recentWeek(k);
+    const c = COURSES[k], s = courseStat(k), bl = backlog(k);
     const frac = c.total ? Math.min(1, s.done / c.total) : 0;
     let right;
     if (s.finished) right = '<span>已完成</span>';
@@ -1195,13 +1337,16 @@ function renderProgress(){
 
     // 欠账（只显示，不自动挪计划）
     let gap = '';
-    if (rw.planned > 0){
-      const cls = rw.gap > 0 ? 'bad' : 'ok';
-      gap = '<div class="pc-b ' + cls + '">最近 7 天：计划 ' + rw.planned + ' 讲，实际完成 ' +
-            rw.actual + ' 讲' +
-            (rw.gap > 0 ? ' —— <b>欠 ' + rw.gap + ' 讲</b>' : ' —— <b>跟上了</b>') + '</div>';
+    if (bl.planned > 0 || bl.gap !== 0){
+      const cls = bl.gap > 0 ? 'bad' : 'ok';
+      gap = '<div class="pc-b ' + cls + '">按计划到今天应完成 <b>' + bl.planned + '</b> 讲，'
+        + '实际完成 <b>' + bl.actual + '</b> 讲'
+        + (bl.gap > 0 ? ' —— <b>欠 ' + bl.gap + ' 讲</b>'
+           : bl.gap < 0 ? ' —— <b>超前 ' + (-bl.gap) + ' 讲</b>'
+           : ' —— <b>正好跟上</b>') + '</div>';
     }
 
+    const open = !!_expanded[k];
     return '<div class="pc' + (s.finished?' done':'') + '">'
       + '<div class="pc-h"><div class="pc-n">' + c.name + '<span class="pc-s">' + c.sub + '</span></div>'
       + '<div class="pc-p">' + s.pct + '%</div></div>'
@@ -1210,6 +1355,10 @@ function renderProgress(){
       +   (s.finished ? '' : '　·　下一讲 第 <b>' + nextLecture(k) + '</b> 讲')
       + '</span>' + right + '</div>'
       + basis + gap
+      + '<div class="pc-x" data-exp="' + k + '">'
+      +   '<span>' + (open ? '收起明细' : '展开逐讲 · 可勾选') + '</span>'
+      +   '<span>' + (open ? '▲' : '▼') + '</span></div>'
+      + (open ? '<div class="pc-l">' + lectureListHTML(k) + '</div>' : '')
       + '</div>';
   }).join('');
 
@@ -1239,15 +1388,18 @@ function renderProgress(){
     +   (wk || '<div class="muted">本周没有排课程推进</div>') + '</div>'
 
     + '<h2>怎么算的</h2><div class="box">'
-    +   '<div style="font-size:13px;color:var(--fg);font-weight:700;margin-bottom:6px">讲次编号</div>'
-    +   '<div class="muted" style="margin-top:0">每块显示的是<b>你真正该看的下一讲</b>（已完成数 + 1），'
-    +   '不是计划排到第几讲。所以<b>落后了编号会自动对</b>，不需要顺延，也不会滚雪球。'
-    +   '已完成的那块改成显示 ✓ —— 这样编号不会随打勾而漂移。</div>'
+    +   '<div style="font-size:13px;color:var(--fg);font-weight:700;margin-bottom:6px">勾选是双向的</div>'
+    +   '<div class="muted" style="margin-top:0">① 在<b>今日 / 本周</b>打勾某个时段 → 进度自动推进；'
+    +   '② 在<b>进度页展开逐讲</b>勾某一讲 → 会自动划掉日程里对应的那个时段。'
+    +   '两个方向共用同一份数据，不会打架。</div>'
+    +   '<div style="font-size:13px;color:var(--fg);font-weight:700;margin:12px 0 6px">欠账 = 应完成 − 实际完成</div>'
+    +   '<div class="muted" style="margin-top:0">「应完成」按计划到今天为止该推的讲数算。'
+    +   '落后了显示<b>欠 N 讲</b>，超前了显示<b>超前 N 讲</b>。</div>'
     +   '<div style="font-size:13px;color:var(--fg);font-weight:700;margin:12px 0 6px">预计完成日期</div>'
-    +   '<div class="muted" style="margin-top:0">优先用<b>你的实际速度</b>推算。'
+    +   '<div class="muted" style="margin-top:0">优先用<b>你的实际速度</b>推算；'
     +   '样本不足 5 天时退回计划速度，并标注「估算」。</div>'
     +   '<div style="font-size:13px;color:var(--fg);font-weight:700;margin:12px 0 6px">欠账只显示，不代劳</div>'
-    +   '<div class="muted" style="margin-top:0">系统<b>不会</b>帮你把没完成的挪到第二天 —— '
+    +   '<div class="muted" style="margin-top:0">系统<b>不会</b>自动把没完成的挪到第二天 —— '
     +   '那样会一天堆一天，一周后直接崩。落后的部分你自己决定什么时候补，或者干脆跳过。</div>'
     + '</div>'
 
@@ -1415,9 +1567,32 @@ document.querySelectorAll('nav button').forEach(btn => {
   };
 });
 
+/* 进度页展开状态 */
+const _expanded = {};
+
 document.addEventListener('click', e => {
   // 关闭弹层（点遮罩 / 点 ✕）
   if (e.target.closest('[data-close]')){ closeSheet(); return; }
+
+  // 进度页：展开 / 收起逐讲
+  const ex = e.target.closest('[data-exp]');
+  if (ex){
+    const k = ex.dataset.exp;
+    _expanded[k] = !_expanded[k];
+    renderProgress();
+    return;
+  }
+
+  // 进度页：勾选某一讲 → 同步到日程里对应的时段
+  const lc = e.target.closest('[data-lec]');
+  if (lc){
+    const p = lc.dataset.lec.split(':');
+    const key = p[0], L = parseInt(p[1], 10);
+    toggleLecture(key, L, !lectureDone(key, L));
+    renderToday(); renderWeek(); renderProgress();
+    if (sheetDate) openDay(sheetDate);
+    return;
+  }
 
   // 打勾（今日页 与 弹层内 通用）
   const row = e.target.closest('[data-ck]');
