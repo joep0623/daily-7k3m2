@@ -330,6 +330,35 @@ td:first-child{color:var(--fg); font-weight:600; white-space:nowrap}
 </head>
 <body>
 
+<!-- ⚠️ 自报错：脚本出问题时把错误显示出来，不让你面对白屏 -->
+<div id="bootErr" style="display:none;position:fixed;left:0;right:0;top:0;z-index:9999;
+  background:#c62828;color:#fff;padding:12px 14px;
+  font:12px/1.55 -apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif;
+  white-space:pre-wrap;word-break:break-all;max-height:60vh;overflow:auto"></div>
+<script>
+(function(){
+  function show(msg){
+    try{
+      var d = document.getElementById('bootErr');
+      if (!d) return;
+      d.style.display = 'block';
+      d.textContent = '⚠️ 页面脚本出错 —— 把这段截图发给 Claude\n\n' + msg;
+    }catch(e){}
+  }
+  window.onerror = function(m, s, l, c, e){
+    show(m + '\n\n位置：第 ' + l + ' 行，第 ' + c + ' 列'
+         + (s ? '\n文件：' + String(s).split('/').pop() : '')
+         + (e && e.stack ? '\n\n' + e.stack : ''));
+    return false;
+  };
+  window.addEventListener('unhandledrejection', function(ev){
+    var r = ev && ev.reason;
+    show('异步错误：' + (r && r.message ? r.message : String(r))
+         + (r && r.stack ? '\n\n' + r.stack : ''));
+  });
+})();
+</script>
+
 <header>
   <div class="hd-top">
     <div class="hd-title" id="hdTitle">—</div>
