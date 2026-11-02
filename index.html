@@ -549,7 +549,7 @@ const TPL = {
     B('15:00','15:10','休息 10min','rest'),
     B('15:10','16:00','生理 · 网课 + 笔记','study','shengli',1),
     B('16:00','16:20','休息 20min（加餐 / 走动）','rest'),
-    B('16:20','17:10','诊断学 · 当天内容整理 + 对应真题','study'),
+    B('16:20','17:10','药理学 · 当天内容整理 + 对应真题','study'),
     B('17:10','17:30','休息','rest'),
     B('17:30','18:30','晚饭','life'),
     B('18:30','19:20','复盘 + 错题归类','study'),
@@ -580,7 +580,7 @@ const TPL = {
     B('15:30','15:50','休息 20min（加餐 / 走动）','rest'),
     B('15:50','16:40','生理 · 网课 + 笔记','study','shengli',1),
     B('16:40','17:00','休息','rest'),
-    B('17:00','17:50','诊断学 · 当天内容整理 + 对应真题','study'),
+    B('17:00','17:50','药理学 · 当天内容整理 + 对应真题','study'),
     B('17:50','18:10','休息','rest'),
     B('18:10','19:00','学校课 / 实操练习','study'),
     B('19:00','20:00','晚饭','life'),
@@ -619,11 +619,34 @@ const TPL = {
     B('09:00','11:00','自然醒（周日补觉，不设闹钟）','rest'),
     B('11:00','13:00','约会 / 个人时间','love'),
     B('13:00','14:00','午饭','life'),
-    B('14:00','22:00','完全自由 · 不排计划 · 不计进度','rest'),
-    B('22:00','24:00','自由 / 洗漱','rest'),
+    B('14:00','14:50','课题组 · 推进一个小任务（可选）','study'),
+    B('14:50','15:00','休息','rest'),
+    B('15:00','15:50','课题组 · 继续（可选）','study'),
+    B('15:50','16:05','休息','rest'),
+    B('16:05','16:55','课题组 · 收尾（可选）','study'),
+    B('16:55','24:00','完全自由 · 不排计划 · 不计进度','rest'),
     B('24:00','24:30','洗漱降速','base'),
   ],
 };
+
+/* ★ 每周固定追加（按星期几，Monday=1 … Sunday=0）。
+   会「切开」被它覆盖的那个时段，不会产生重叠。 */
+const WEEKLY_EXTRA = {
+  2: [ B('22:15','23:05','课题组 · 推进一个小任务（可选）','study') ],   // 周二晚
+};
+function insertBlock(blocks, nb){
+  const ns = toMin(nb.s), ne = toMin(nb.e);
+  const out = [];
+  for (const b of blocks){
+    const bs = toMin(b.s), be = toMin(b.e);
+    if (be <= ns || bs >= ne){ out.push(b); continue; }
+    if (bs < ns) out.push(Object.assign({}, b, { e: nb.s }));
+    if (be > ne) out.push(Object.assign({}, b, { s: nb.e }));
+  }
+  out.push(nb);
+  out.sort((a, b) => toMin(a.s) - toMin(b.s));
+  return out;
+}
 
 /* ★ 周三：晚上 18:30–22:30 约会。
    ⚠️ 和晚上 19:45 健身直接冲突 → 轮到训练日时，健身提前到下午 15:10 出发。
@@ -667,7 +690,12 @@ const SUN_TRAIN = [
   B('09:00','11:00','自然醒（周日补觉，不设闹钟）','rest'),
   B('11:00','13:00','约会 / 个人时间','love'),
   B('13:00','14:00','午饭','life'),
-  B('14:00','19:45','完全自由 · 不排学习 · 不计进度','rest'),
+  B('14:00','14:50','课题组 · 推进一个小任务（可选）','study'),
+  B('14:50','15:00','休息','rest'),
+  B('15:00','15:50','课题组 · 继续（可选）','study'),
+  B('15:50','16:05','休息','rest'),
+  B('16:05','16:55','课题组 · 收尾（可选）','study'),
+  B('16:55','19:45','完全自由 · 不排学习 · 不计进度','rest'),
   B('19:45','20:05','骑车去健身房','body'),
   B('20:05','20:15','热身','body'),
   B('20:15','21:25','训练（推/拉 70min · 腿日 80min）','body'),
@@ -684,13 +712,18 @@ function saturdayBlocks(dateStr){
   return trainTypeOf(dateStr) === 'rest' ? TPL.saturdayNotrain : TPL.saturday;
 }
 
-/* 某天的默认安排：周日 > 周六 > 训练循环（周三叠加约会） */
+/* 某天的默认安排：周日 > 周六 > 训练循环（周三叠加约会）。最后叠加 WEEKLY_EXTRA */
 function defaultBlocks(dateStr){
   const dow = parseD(dateStr).getDay();
-  if (dow === 0) return sundayBlocks(dateStr);
-  if (dow === 6) return saturdayBlocks(dateStr);
-  const base = (trainTypeOf(dateStr) === 'rest') ? TPL.rest : TPL.train;
-  return (dow === 3) ? withDateEve(dateStr, base) : base;
+  let out;
+  if (dow === 0) out = sundayBlocks(dateStr);
+  else if (dow === 6) out = saturdayBlocks(dateStr);
+  else {
+    const base = (trainTypeOf(dateStr) === 'rest') ? TPL.rest : TPL.train;
+    out = (dow === 3) ? withDateEve(dateStr, base) : base;
+  }
+  (WEEKLY_EXTRA[dow] || []).forEach(nb => { out = insertBlock(out, nb); });
+  return out;
 }
 
 const WEEKS = [
